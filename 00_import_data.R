@@ -1,6 +1,9 @@
 # 00_import_data
 # imports and collates all csv's from data folder in repository
 
+# Set folder in repository to have folder: data
+# inside contains csv's of data
+
 # library imports
 if (!requireNamespace("tidyverse", quietly = TRUE)) {install.packages("tidyverse")}
 
