@@ -8,7 +8,7 @@
 if (!requireNamespace("tidyverse", quietly = TRUE)) {install.packages("tidyverse")}
 
 # load libraries
-library(tidyverse)
+library(tidyverse, quietly = TRUE)
 
 # import all csv data sets in the repository
 file_list <- list.files("data/", pattern = "*.csv", full.names = TRUE)
