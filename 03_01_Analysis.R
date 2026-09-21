@@ -78,12 +78,12 @@ ecan_lookup <- ecan %>%
 
 # missingness table
 
-missing_table <- ecan_lookup %>%
-  filter(is.na(lookup_class)) %>%
-  count(TLA, LandUse, sort = TRUE) %>%
-  mutate(TLA_name = recode(TLA, !!!tla_names))
-
-write_csv(missing_table, "outputs_rq3/table_A_missingness.csv")
+# missing_table <- ecan_lookup %>%
+#   filter(is.na(lookup_class)) %>%
+#   count(TLA, LandUse, sort = TRUE) %>%
+#   mutate(TLA_name = recode(TLA, !!!tla_names))
+# 
+# write_csv(missing_table, "outputs_rq3/table_A_missingness.csv")
 
 
 # Method B, guess urban or rural from site size and category code
@@ -140,8 +140,8 @@ ecan_proxy <- ecan_proxy %>%
   )
 
 
-# Method C, crude check: Chch city = Urban, everything else = Rural
-# Only used to check the headline results dont depend on the mapping
+# Method C: Chch city = Urban, everything else = Rural
+# Only used to check the headline results not used to do any mapping
 
 ecan_checked <- ecan_proxy %>%
   mutate(check_class = if_else(TLA == "060", "Urban", "Rural"),
@@ -149,10 +149,9 @@ ecan_checked <- ecan_proxy %>%
 
 
 # Final class, combine the methods
-#   Where A exists it wins (official Stats NZ geography)
-#   Where A misses (blank or unmapped locality) fall back to B
-#   Where A and B disagree keep "Peri-urban" instead of
-#   forcing a binary, the lifestyle blocks on the edge are a real thing
+#   Where A exists use it (direct from stats NZ)
+#   Where A is blank or unmapped use B
+#   Where A and B disagree set as "Peri-urban"
 
 disagree <- !is.na(ecan_checked$lookup_class) &
   ecan_checked$proxy_class %in% c("Urban", "Rural") &
@@ -174,27 +173,27 @@ ecan_classified <- ecan_checked %>%
 class_counts <- ecan_classified %>% count(final_class, sort = TRUE) %>%
   mutate(percent = round(100 * n / sum(n), 2))
 
-write_csv(class_counts, "outputs_rq3/table_final_split.csv")
+# write_csv(class_counts, "outputs_rq3/table_final_split.csv")
 
 
 # A vs B agreement table
 
-agreement_table <- ecan_classified %>%
-  filter(!is.na(lookup_class), proxy_class %in% c("Urban", "Rural")) %>%
-  count(lookup_class, proxy_class) %>%
-  group_by(lookup_class) %>% mutate(percent = round(100 * n / sum(n), 1)) %>% ungroup()
-
-write_csv(agreement_table, "outputs_rq3/table_A_vs_B_agreement.csv")
+# agreement_table <- ecan_classified %>%
+#   filter(!is.na(lookup_class), proxy_class %in% c("Urban", "Rural")) %>%
+#   count(lookup_class, proxy_class) %>%
+#   group_by(lookup_class) %>% mutate(percent = round(100 * n / sum(n), 1)) %>% ungroup()
+# 
+# write_csv(agreement_table, "outputs_rq3/table_A_vs_B_agreement.csv")
 
 
 # save classified ECAN
 
-ecan_classified %>%
-  select(OBJECTID, TLA, LocalCouncil, StreetAddress, LocalityName, Category,
-         LandUse, CapitalValue, LandValue, ImprovementsValue, site_ha,
-         lookup_area, lookup_code, lookup_class, proxy_class,
-         check_class, final_class, class_source) %>%
-  write_csv("outputs_rq3/ecan_classified.csv")
+# ecan_classified %>%
+#   select(OBJECTID, TLA, LocalCouncil, StreetAddress, LocalityName, Category,
+#          LandUse, CapitalValue, LandValue, ImprovementsValue, site_ha,
+#          lookup_area, lookup_code, lookup_class, proxy_class,
+#          check_class, final_class, class_source) %>%
+#   write_csv("outputs_rq3/ecan_classified.csv")
 
 
 # Valuation roll, Canterbury TAs only
@@ -244,8 +243,8 @@ valuation <- valuation %>%
     check_class = if_else(district == "Christchurch City", "Urban", "Rural")
   )
 
-write_csv(valuation %>% count(district, final_class),
-          "outputs_rq3/table_valroll_split.csv")
+# write_csv(valuation %>% count(district, final_class),
+#           "outputs_rq3/table_valroll_split.csv")
 
 
 # EDA:
@@ -270,7 +269,7 @@ summarize_by_class <- function(data, column) {
 
 value_summary <- summarize_by_class(ecan_classified %>% filter(CapitalValue > 1000), "CapitalValue")
 
-write_csv(value_summary, "outputs_rq3/eda_capital_value.csv")
+# write_csv(value_summary, "outputs_rq3/eda_capital_value.csv")
 
 
 # land share of value (ECAN)
@@ -281,7 +280,7 @@ ecan_classified <- ecan_classified %>%
 land_share_summary <- summarize_by_class(ecan_classified %>% filter(!is.na(land_share), land_share >= 0,
                                                                     land_share <= 1), "land_share")
 
-write_csv(land_share_summary, "outputs_rq3/eda_land_share.csv")
+# write_csv(land_share_summary, "outputs_rq3/eda_land_share.csv")
 
 
 # site size (ECAN)
@@ -289,7 +288,7 @@ write_csv(land_share_summary, "outputs_rq3/eda_land_share.csv")
 site_summary <- summarize_by_class(ecan_classified %>% filter(!is.na(site_ha), site_ha > 0,
                                                               site_ha < 100), "site_ha")
 
-write_csv(site_summary, "outputs_rq3/eda_site_ha.csv")
+# write_csv(site_summary, "outputs_rq3/eda_site_ha.csv")
 
 
 # valuation roll: values, floor area, bedrooms by class (Chch and Selwyn)
@@ -302,7 +301,7 @@ for (column in c("capital_value", "land_value", "building_total_floor_area",
     summarise(n = n(), median = median(.data[[column]], na.rm = TRUE),
               mean = mean(.data[[column]], na.rm = TRUE), .groups = "drop")
   
-  write_csv(result, paste0("outputs_rq3/eda_valroll_", column, ".csv"))
+  # write_csv(result, paste0("outputs_rq3/eda_valroll_", column, ".csv"))
   
 }
 
