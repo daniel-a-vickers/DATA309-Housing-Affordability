@@ -1,0 +1,5 @@
+lookup_class,proxy_class,n,percent
+Rural,Rural,5580,34.7
+Rural,Urban,10517,65.3
+Urban,Rural,14133,6.3
+Urban,Urban,210292,93.7

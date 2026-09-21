@@ -1,0 +1,27 @@
+
+Call:
+lm(formula = log_cv ~ final_class * TLA, data = model_data)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-6.9487 -0.1676  0.0668  0.3208  5.9826 
+
+Coefficients:
+                         Estimate Std. Error  t value Pr(>|t|)    
+(Intercept)             13.887565   0.009479 1465.096  < 2e-16 ***
+final_classUrban        -0.509199   0.011290  -45.101  < 2e-16 ***
+TLA060                  -0.633849   0.026201  -24.191  < 2e-16 ***
+TLA062                  -0.281082   0.016350  -17.191  < 2e-16 ***
+TLA063                   0.064161   0.016492    3.891    1e-04 ***
+TLA064                  -0.151333   0.021025   -7.198 6.13e-13 ***
+final_classUrban:TLA060  0.603709   0.026986   22.372  < 2e-16 ***
+final_classUrban:TLA062  0.234912   0.018377   12.783  < 2e-16 ***
+final_classUrban:TLA063 -0.573940   0.019371  -29.629  < 2e-16 ***
+final_classUrban:TLA064 -0.189365   0.022792   -8.308  < 2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.8507 on 266736 degrees of freedom
+Multiple R-squared:  0.04301,	Adjusted R-squared:  0.04298 
+F-statistic:  1332 on 9 and 266736 DF,  p-value: < 2.2e-16
+
