@@ -1,3 +1,0 @@
-Capital value (Wilcoxon): W = 4533914359  p = < 2.22e-16 
-Land share (Wilcoxon): W = 4372793709  p = < 2.22e-16 
-Category prefix (Chi-sq): X2 = 247172.9  p = < 2.22e-16 
