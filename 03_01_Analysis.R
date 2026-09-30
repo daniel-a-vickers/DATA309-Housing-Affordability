@@ -41,7 +41,7 @@ locality_lookup <- read_csv("data_urban_rural_locality_lookup.csv", show_col_typ
 # load and clean data
 # Using ECAN property data
 
-ecan <- read_csv("data/ECAN_Property_Values.csv",
+ecan <- read_csv("Canterbury_Properties.zip",
                  show_col_types = FALSE, lazy = FALSE) %>%
   rename_with(~ str_trim(.x)) %>%
   mutate(
@@ -201,7 +201,7 @@ class_counts <- ecan_classified %>% count(final_class, sort = TRUE) %>%
 # Only 60/62 are Canterbury so filter to those. Old 03_00 mapping
 
 
-valuation <- read_csv("data/nz-properties-national-district-valuation-roll.csv",
+valuation <- read_csv("nz-properties-national-district-valuation-roll.csv",
                       show_col_types = FALSE, lazy = FALSE) %>%
   mutate(
     district_ta_code = as.character(str_trim(district_ta_code)),
