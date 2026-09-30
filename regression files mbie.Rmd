@@ -1,0 +1,2979 @@
+---
+title: "MBIE Housing Affordability Project — Regression Analysis"
+author: "Mohammad Zaid Khan"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+
+library(dplyr)
+library(ggplot2)
+library(lmtest)
+library(sandwich)
+
+load("housing_analysis_objects.RData")
+
+# ============================================================
+# DATA FILE PATHS
+# ============================================================
+# All datasets should be stored inside the "data" folder
+# in the GitHub project.
+
+affordability_file <- "data/house-value-to-income-multiple-and-mortgage-payment-proportion-of-income (1).csv"
+
+qv_file <- "data/QV_House_Price_Index.csv"
+
+cpi_file <- "data/cpi.xlsx"
+
+migration_file <- "data/migration.xlsx"
+
+mortgage_file <- "data/mortgage.csv"
+
+tenancy_file <- "data/tenancy.txt"
+
+housing_local_file <- "data/Local_Housing_Stats/Local_Housing_Stats.csv"
+
+median_house_file <- "data/median-average-house-value.csv"
+
+mean_house_1_file <- "data/mean-average-house-value (1).csv"
+
+mean_house_2_file <- "data/mean-average-house-value (2).csv"
+
+mean_house_3_file <- "data/mean-average-house-value (3).csv"
+
+mean_house_file <- "data/mean-average-house-value.csv"
+```
+
+
+
+# Analysis Overview
+
+The purpose of this analysis is to investigate factors that may be associated with housing affordability in the Canterbury Region, with particular attention to the recent 2021–2025 period.
+
+The analysis does not begin immediately with regression. Instead, each potential explanatory variable is first investigated to determine whether the dataset is suitable, whether its geographic and temporal coverage matches the research question, and whether there is enough information to justify including it in a statistical model.
+
+The main affordability measures initially available are Canterbury's **house value-to-income multiple** and **mortgage payment proportion of income**. Exploratory analysis of these measures is used to identify important periods and motivate the investigation of possible explanatory factors such as housing supply, building activity, inflation, migration, mortgage interest rates, population growth, and geographic differences in property values.
+
+---
+
+# 1. Canterbury Housing Affordability
+
+## Why this dataset is used
+
+Before investigating possible causes or associated factors, we first need to understand how housing affordability itself has changed.
+
+The dataset `house-value-to-income-multiple-and-mortgage-payment-proportion-of-income (1).csv` contains two useful Canterbury affordability indicators:
+
+1. **House value-to-income multiple**, which compares housing values with household income.
+2. **Mortgage payment proportion of income**, which measures the share of income required for mortgage payments.
+
+These indicators capture different dimensions of affordability. House values relative to income represent the purchase-price dimension, while mortgage burden also reflects financing conditions.
+
+```{r}
+library(tidyverse)
+
+affordability <- read.csv(
+  "C:/Users/mugha/OneDrive/Desktop/Data science/data309/project/house-value-to-income-multiple-and-mortgage-payment-proportion-of-income (1).csv",
+  stringsAsFactors = TRUE
+)
+
+View(affordability)
+
+names(affordability)
+
+dim(affordability)
+
+str(affordability)
+
+summary(affordability)
+```
+
+## Why these checks were performed
+
+The first step was to inspect the structure, dimensions, variable names, and summary statistics of the dataset. This helps identify potential data-quality problems before conducting statistical analysis.
+
+After preparing the Canterbury variables as `canterbury_affordability`, additional checks were performed for missing observations, duplicate years, and the available time range.
+
+```{r}
+# Data quality checks
+
+dim(canterbury_affordability)
+
+colSums(is.na(canterbury_affordability))
+
+sum(duplicated(canterbury_affordability$Year))
+
+range(canterbury_affordability$Year)
+```
+
+## Finding
+
+The Canterbury affordability dataset contains complete annual observations from **2005 to 2026**, with no missing observations or duplicate years for the selected affordability measures.
+
+This makes the dataset suitable for exploratory analysis of long-term Canterbury affordability trends.
+
+---
+
+# 2. Descriptive Statistics for Canterbury Affordability
+
+## Why this analysis is used
+
+Before examining trends or relationships with other variables, descriptive statistics provide a baseline understanding of the typical level and variability of Canterbury housing affordability.
+
+```{r}
+canterbury_affordability |>
+  summarise(
+    Mean_ValueIncome = mean(ValueIncome),
+    Median_ValueIncome = median(ValueIncome),
+    SD_ValueIncome = sd(ValueIncome),
+    Min_ValueIncome = min(ValueIncome),
+    Max_ValueIncome = max(ValueIncome),
+
+    Mean_MortgageBurden = mean(MortgageBurden),
+    Median_MortgageBurden = median(MortgageBurden),
+    SD_MortgageBurden = sd(MortgageBurden),
+    Min_MortgageBurden = min(MortgageBurden),
+    Max_MortgageBurden = max(MortgageBurden)
+  )
+```
+
+## Interpretation
+
+Across 2005–2026, Canterbury's house value-to-income multiple averaged approximately **4.99**, meaning that house values were approximately five times household income on average.
+
+Mortgage payments averaged approximately **31.37% of income**.
+
+Both measures also displayed substantial variation over the period, suggesting that Canterbury housing affordability has changed considerably rather than remaining stable.
+
+## Potential Project Finding
+
+> Between 2005 and 2026, Canterbury's house value-to-income multiple averaged approximately 4.99, while mortgage payments averaged approximately 31.37% of income. Both measures varied substantially over time, indicating that housing affordability conditions have changed considerably across the period.
+
+This provides useful background for **RQ1**, which investigates the factors contributing to housing affordability issues in Canterbury.
+
+---
+
+# 3. House Value-to-Income Over Time
+
+## Why this analysis is used
+
+The descriptive statistics show variation but do not reveal **when** affordability changed.
+
+A time-series plot is therefore used to identify periods where Canterbury's house value-to-income multiple changed particularly strongly.
+
+```{r}
+ggplot(
+  canterbury_affordability,
+  aes(x = Year, y = ValueIncome)
+) +
+  geom_line(color = "#0072B2", linewidth = 1.1) +
+  geom_point(color = "#0072B2", size = 2.5) +
+  labs(
+    title = "Canterbury House Value-to-Income Multiple",
+    subtitle = "2005–2026",
+    x = "Year",
+    y = "House Value-to-Income Multiple"
+  ) +
+  theme_minimal()
+```
+
+## Interpretation
+
+The graph suggests approximately three broad periods.
+
+**2005–2020:** The ratio fluctuated but remained relatively stable compared with the later increase.
+
+**2021–2022:** Affordability deteriorated rapidly. The ratio increased from **4.8 in 2020 to 5.5 in 2021 and 6.5 in 2022**.
+
+**2023 onward:** The ratio declined from its 2022 peak, indicating partial improvement. However, it remained above the 2020 level.
+
+## Potential Project Finding
+
+> Canterbury's house value-to-income multiple increased sharply during 2021–2022, reaching a series maximum of 6.5 in 2022. Although the multiple subsequently declined, it remained above its 2020 level.
+
+## How this influences the next analysis
+
+The unusually large movement around **2021–2023** suggests that factors changing during this period deserve particular attention.
+
+This motivates investigation of housing supply, inflation, migration, mortgage rates, population, and other economic conditions.
+
+---
+
+# 4. Mortgage Payment Burden Over Time
+
+## Why this analysis is used
+
+House value-to-income is only one dimension of affordability.
+
+A household may experience increasing mortgage pressure even when house prices stabilise or decline because mortgage payments are also affected by financing conditions.
+
+We therefore examine Canterbury's mortgage payment burden separately.
+
+```{r}
+ggplot(
+  canterbury_affordability,
+  aes(x = Year, y = MortgageBurden)
+) +
+  geom_line(color = "#D55E00", linewidth = 1.1) +
+  geom_point(color = "#D55E00", size = 2.5) +
+  labs(
+    title = "Canterbury Mortgage Payment Burden",
+    subtitle = "2005–2026",
+    x = "Year",
+    y = "Mortgage Payment Proportion of Income (%)"
+  ) +
+  theme_minimal()
+```
+
+## Interpretation
+
+Mortgage burden behaves differently from the house value-to-income multiple.
+
+It was already relatively high during 2007–2008, declined considerably afterward, and reached a low of **24.7% in 2020**.
+
+It then increased sharply, reaching **40.2% in 2024**, before declining to **34.0% in 2025** and **33.1% in 2026**.
+
+## Potential Project Finding
+
+> Mortgage payment burden in Canterbury did not follow a simple long-term upward pattern. Instead, the series experienced distinct periods of high and low burden, including relatively high levels around 2007–2008 and again during 2022–2024.
+
+## Why this matters
+
+This pattern suggests that the passage of time alone is unlikely to explain mortgage affordability.
+
+It provides an early reason to investigate changing economic and financing conditions, particularly mortgage interest rates.
+
+---
+
+# 5. Largest Changes in House Value-to-Income
+
+## Why this analysis is used
+
+The graph suggested unusually large movements around 2021–2023. To confirm this numerically, annual percentage changes are ranked according to their magnitude.
+
+```{r}
+canterbury_affordability |>
+  filter(!is.na(ValueIncomePctChange)) |>
+  arrange(desc(abs(ValueIncomePctChange))) |>
+  select(
+    Year,
+    ValueIncome,
+    ValueIncomePctChange
+  ) |>
+  slice_head(n = 6)
+```
+
+## Interpretation
+
+The two largest annual increases occur consecutively in **2021 and 2022**.
+
+This is followed by a substantial decrease in 2023.
+
+## Potential Project Finding
+
+> The most pronounced deterioration in Canterbury's house value-to-income measure occurred during 2021–2022, with annual increases of approximately 14.6% and 18.2%, respectively. This was followed by an approximately 10.8% decrease in 2023.
+
+## How this guides the project
+
+This result gives the project a more focused analytical question:
+
+**What changed during the period surrounding 2021–2023?**
+
+Potential factors to investigate include population, migration, dwelling supply, building activity, inflation, mortgage rates, and broader economic conditions.
+
+---
+
+# 6. Largest Changes in Mortgage Burden
+
+## Why this analysis is used
+
+The same approach is applied to mortgage burden to identify years where financing affordability changed most dramatically.
+
+```{r}
+canterbury_affordability |>
+  filter(!is.na(MortgageBurdenPctChange)) |>
+  arrange(desc(abs(MortgageBurdenPctChange))) |>
+  select(
+    Year,
+    MortgageBurden,
+    MortgageBurdenChange,
+    MortgageBurdenPctChange
+  ) |>
+  slice_head(n = 6)
+```
+
+## Interpretation
+
+The 2022 change is particularly notable.
+
+Mortgage burden increased from:
+
+$$
+26.2\% \rightarrow 36.8\%
+$$
+
+This represents an increase of **10.6 percentage points in one year**.
+
+At this stage, this should not be described as an interest-rate effect because the mortgage-rate data has not yet been incorporated.
+
+Instead, the result provides a hypothesis that financing conditions may be important.
+
+## Potential Project Finding
+
+> Mortgage payment burden increased particularly sharply in 2022, rising from 26.2% to 36.8% of income, an increase of 10.6 percentage points.
+
+## Decision
+
+Because mortgage burden changed so dramatically during this period, **mortgage interest rates become an important candidate explanatory variable for later analysis**.
+
+---
+
+# 7. Relationship Between the Two Affordability Measures
+
+## Why this analysis is used
+
+The previous plots show that house value-to-income and mortgage burden do not always move identically.
+
+A Pearson correlation is used as an exploratory measure of their overall association.
+
+```{r}
+cor.test(
+  canterbury_affordability$ValueIncome,
+  canterbury_affordability$MortgageBurden,
+  method = "pearson"
+)
+```
+
+## Interpretation
+
+The Pearson correlation is approximately:
+
+$$
+r = 0.538
+$$
+
+with:
+
+$$
+p = 0.0098
+$$
+
+This indicates a moderate positive sample association: years with higher house value-to-income multiples have generally also had higher mortgage payment burdens.
+
+However, these observations form a time series. The standard Pearson test assumes independent observations, and this assumption may not fully hold when measurements occur sequentially through time.
+
+The result should therefore be treated as exploratory rather than definitive evidence.
+
+## Potential Project Finding
+
+> Exploratory analysis identified a moderate positive association between Canterbury's house value-to-income multiple and mortgage payment burden ($r=0.538$). This suggests that the two affordability measures are related, although they do not move identically over time.
+
+---
+
+# 8. Focusing on the Recent Period
+
+## Why this analysis is used
+
+The project is primarily concerned with recent housing affordability. The earlier analysis also identified 2021–2023 as a period of unusually large changes.
+
+The recent observations are therefore isolated for closer inspection.
+
+```{r}
+canterbury_affordability |>
+  filter(Year >= 2020) |>
+  select(
+    Year,
+    ValueIncome,
+    MortgageBurden
+  )
+```
+
+## Interpretation
+
+An important divergence appears after 2022.
+
+House value-to-income peaks in 2022 and subsequently improves:
+
+$$
+6.5 \rightarrow 5.8 \rightarrow 5.7
+$$
+
+However, mortgage burden continues to deteriorate:
+
+$$
+36.8\% \rightarrow 39.6\% \rightarrow 40.2\%
+$$
+
+## Potential Project Finding
+
+> The two affordability measures diverged after 2022. While Canterbury's house value-to-income multiple declined from 6.5 in 2022 to 5.7 in 2024, mortgage payment burden increased from 36.8% to 40.2% over the same period. This indicates that improvements in house values relative to income did not immediately correspond to lower mortgage payment burdens.
+
+## Why this finding is important
+
+This is one of the strongest motivations for the later modelling.
+
+If house values relative to income were improving while mortgage burden was still increasing, **financing conditions may have played an important role**.
+
+This strengthens the reason for including mortgage interest rates among the candidate predictors.
+
+---
+
+# 9. Simple Time Trend — House Value-to-Income
+
+## Why this model is used
+
+Before adding economic explanatory variables, a simple time-trend model is fitted.
+
+The purpose is not to claim that calendar year causes affordability. Instead, it provides a baseline showing how much of the variation can be represented by a simple long-run linear trend.
+
+```{r}
+value_time_model <- lm(
+  ValueIncome ~ Year,
+  data = canterbury_affordability
+)
+
+summary(value_time_model)
+```
+
+## Main Results
+
+$$
+\beta_{Year} = 0.0656
+$$
+
+$$
+p < 0.001
+$$
+
+$$
+R^2 = 0.545
+$$
+
+## Interpretation
+
+The model estimates an average increase of approximately **0.066 in the house value-to-income multiple per year** over 2005–2026.
+
+Approximately **54.5% of the observed variation** is represented by the linear time trend.
+
+However, the earlier graph shows substantial departures from a straight-line pattern, particularly around the early 2020s.
+
+## Potential Project Finding
+
+> A simple linear time-trend model identified an overall upward trend in Canterbury's house value-to-income multiple over 2005–2026 ($\beta=0.066$ per year, $p<0.001$, $R^2=0.545$). However, substantial deviations around the trend, particularly during the early 2020s, indicate that time alone does not explain the observed changes.
+
+---
+
+# 10. Simple Time Trend — Mortgage Burden
+
+## Why this model is used
+
+The same baseline test is applied to mortgage burden to determine whether it follows a simple long-run linear pattern.
+
+```{r}
+mortgage_time_model <- lm(
+  MortgageBurden ~ Year,
+  data = canterbury_affordability
+)
+
+summary(mortgage_time_model)
+```
+
+## Main Results
+
+$$
+\beta_{Year} = 0.0226
+$$
+
+$$
+p = 0.901
+$$
+
+$$
+R^2 \approx 0.001
+$$
+
+## Interpretation
+
+There is essentially no linear relationship between calendar year and mortgage burden across the full period.
+
+Only approximately **0.1% of the variation** is represented by this simple time trend.
+
+This is consistent with the graph, where mortgage burden rises and falls rather than following one continuous trajectory.
+
+## Potential Project Finding
+
+> Unlike the house value-to-income multiple, mortgage payment burden did not exhibit a significant linear trend over 2005–2026 ($p=0.901$). This motivates investigation of changing economic and financing conditions rather than relying on time alone to describe mortgage affordability.
+
+This is motivation for subsequent analysis rather than proof that any particular economic variable caused the changes.
+
+---
+
+# 11. Population Analysis
+
+## Why population was investigated
+
+Population growth may increase housing demand if the housing stock does not expand at a similar rate.
+
+Population was therefore investigated as a possible explanatory factor for Canterbury housing affordability.
+
+Two population datasets were available:
+
+- `population_data.csv`
+- `subnational-population-estimates-at-30-june-2025-provisional.xlsx`
+
+The first was found to contain New Zealand-level population rather than Canterbury-specific population. It is therefore retained for possible use in **RQ2**, where Canterbury is compared with New Zealand.
+
+The subnational dataset contains Canterbury estimates and is more appropriate for regional analysis.
+
+```{r}
+library(readxl)
+
+getwd()
+
+list.files()
+
+pop_file <- file.choose()
+```
+
+The available Excel sheets were inspected to identify the relevant population tables.
+
+```{r}
+sheets <- excel_sheets(pop_file)
+
+data.frame(
+  Sheet_Number = seq_along(sheets),
+  Sheet_Name = sheets
+)
+
+contents <- read_excel(
+  pop_file,
+  sheet = "Contents",
+  col_names = FALSE
+)
+
+print(contents, n = 50, width = Inf)
+```
+
+## Population Findings
+
+The available recent Canterbury estimates were approximately:
+
+- **2023: 676,600**
+- **2024: 690,600**
+- **2025: 698,200**
+
+This represents growth of approximately **2.1% from 2023 to 2024** and **1.1% from 2024 to 2025**.
+
+Over the same period, Canterbury's house value-to-income multiple declined:
+
+$$
+5.8 \rightarrow 5.7 \rightarrow 5.6
+$$
+
+Mortgage burden changed:
+
+$$
+39.6\% \rightarrow 40.2\% \rightarrow 34.0\%
+$$
+
+## Potential Project Finding
+
+> Canterbury's population continued to increase between 2023 and 2025 while the house value-to-income multiple declined slightly. Therefore, population growth alone does not appear sufficient to describe the recent movement in housing affordability.
+
+This is a descriptive observation and not evidence of causation.
+
+## Modelling Decision
+
+Only three overlapping Canterbury observations were currently available.
+
+A regression based on:
+
+$$
+n = 3
+$$
+
+would be statistically unreliable.
+
+Population was therefore **not forced into a separate regression at this stage**.
+
+The analysis instead moved to dwelling consents, for which quarterly observations were available across the full 2021–2025 study period.
+
+---
+
+# 12. Canterbury Dwelling Consents
+
+## Why dwelling consents were investigated
+
+After population analysis was limited by the small number of observations, housing supply was examined using quarterly dwelling consent data.
+
+Housing supply is theoretically relevant because additional housing development may affect the balance between housing demand and available supply.
+
+The file `Quarterly New Dwelling Consent Analysis Canterbury.xlsx` provides quarterly observations and therefore offers substantially more information than the annual population series.
+
+```{r}
+list.files()
+
+pop_file_quaterly_dwelling_cant <- file.choose()
+
+sheets_2 <- excel_sheets(pop_file_quaterly_dwelling_cant)
+
+data.frame(
+  Sheet_Number = seq_along(sheets_2),
+  Sheet_Name = sheets_2
+)
+```
+
+The Canterbury dwelling consent file was then imported and its columns renamed for easier analysis.
+
+```{r}
+library(dplyr)
+
+consents <- read_excel(file.choose())
+
+consents <- consents |>
+  rename(
+    Quarter = 1,
+    Dwellings = 2,
+    AvgFloorArea = 3,
+    ValuePerSQM = 4,
+    TotalValue = 5,
+    TotalFloorArea = 6,
+    ValuePerConsent = 7
+  )
+
+glimpse(consents)
+```
+
+## Restricting the data to the study period
+
+The project focuses on 2021–2025, so only these quarters were retained.
+
+```{r}
+consents_5yr <- consents |>
+  filter(
+    Quarter >= "2021Q1",
+    Quarter <= "2025Q4"
+  )
+
+consents_5yr
+```
+
+The resulting structure and number of observations were checked.
+
+```{r}
+glimpse(consents_5yr)
+
+nrow(consents_5yr)
+```
+
+The result contains **20 quarterly observations**, giving four quarters for each year from 2021 through 2025.
+
+---
+
+# 13. Exploratory Analysis of Dwelling Consents
+
+## Why this analysis is used
+
+Before including dwelling consents as a predictor, their distribution and time pattern are examined.
+
+```{r}
+consents_5yr |>
+  summarise(
+    Mean = mean(Dwellings),
+    Median = median(Dwellings),
+    SD = sd(Dwellings),
+    Minimum = min(Dwellings),
+    Maximum = max(Dwellings)
+  )
+
+consents_5yr |>
+  filter(Dwellings == max(Dwellings))
+
+consents_5yr |>
+  filter(Dwellings == min(Dwellings))
+```
+
+A quarterly time-series graph was then produced.
+
+```{r}
+library(ggplot2)
+
+ggplot(
+  consents_5yr,
+  aes(x = Quarter, y = Dwellings, group = 1)
+) +
+  geom_line(
+    color = "#0072B2",
+    linewidth = 1.1
+  ) +
+  geom_point(
+    color = "#0072B2",
+    size = 2.5
+  ) +
+  labs(
+    title = "Quarterly New Dwelling Consents in Canterbury",
+    subtitle = "2021Q1–2025Q4",
+    x = "Quarter",
+    y = "Number of Dwellings Consented"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+```
+
+## Interpretation
+
+Quarterly dwelling consenting activity varies substantially across the five-year period.
+
+The highest quarterly level was recorded in **2022Q1 with 2,416 dwellings**, while the lowest was **2024Q1 with 1,305 dwellings**.
+
+This suggests that Canterbury housing development activity was not constant over the study period.
+
+---
+
+# 14. Annual Dwelling Consent Trends
+
+## Why annual totals are also examined
+
+Although the eventual regression dataset is being constructed quarterly, annual aggregation makes the broader supply trend easier to communicate and allows a descriptive comparison with the annual affordability measures.
+
+```{r}
+consents_5yr <- consents_5yr |>
+  mutate(
+    Year = as.numeric(substr(Quarter, 1, 4))
+  )
+
+annual_consents <- consents_5yr |>
+  group_by(Year) |>
+  summarise(
+    AnnualDwellings = sum(Dwellings),
+    AvgQuarterlyDwellings = mean(Dwellings),
+    .groups = "drop"
+  )
+
+annual_consents
+```
+
+Annual changes were then calculated.
+
+```{r}
+annual_consents <- annual_consents |>
+  arrange(Year) |>
+  mutate(
+    AnnualChange = AnnualDwellings - lag(AnnualDwellings),
+    PercentChange =
+      (AnnualDwellings - lag(AnnualDwellings)) /
+      lag(AnnualDwellings) * 100
+  )
+
+annual_consents
+```
+
+## Potential Project Finding
+
+> Canterbury recorded 7,714 new dwelling consents in 2021, increasing by approximately 15.4% to 8,898 in 2022. Consenting activity then declined substantially, falling by approximately 21.8% in 2023 and a further 6.0% in 2024. In 2025, activity recovered by approximately 11.8% to 7,316 dwellings.
+
+Overall, Canterbury experienced a peak in dwelling consenting activity in **2022**, followed by two years of decline and a partial recovery in 2025.
+
+## Important Limitation
+
+Dwelling consents represent **approvals for future construction rather than completed dwellings**.
+
+They are therefore treated as an indicator of housing development activity rather than the immediate supply of houses available to households.
+
+This also means that any relationship with affordability may occur with a **time lag**.
+
+---
+
+# 15. Dwelling Consents and House Value-to-Income
+
+## Why this comparison is used
+
+The earlier affordability analysis showed a major affordability deterioration around 2021–2022.
+
+Because dwelling consenting activity also peaked around this period, the annual series were compared descriptively before attempting more advanced modelling.
+
+```{r}
+affordability_5yr <- canterbury_affordability |>
+  filter(Year >= 2021, Year <= 2025) |>
+  select(
+    Year,
+    ValueIncome,
+    MortgageBurden
+  )
+
+supply_affordability <- annual_consents |>
+  left_join(
+    affordability_5yr,
+    by = "Year"
+  )
+
+supply_affordability
+```
+
+The two series were plotted separately on comparable panels rather than forcing measures with different units onto a single y-axis.
+
+```{r}
+library(tidyverse)
+
+supply_plot_data <- supply_affordability |>
+  select(Year, AnnualDwellings, ValueIncome) |>
+  pivot_longer(
+    cols = c(AnnualDwellings, ValueIncome),
+    names_to = "Measure",
+    values_to = "Value"
+  ) |>
+  mutate(
+    Measure = recode(
+      Measure,
+      AnnualDwellings = "Dwelling Consents",
+      ValueIncome = "House Value-to-Income"
+    )
+  )
+
+ggplot(
+  supply_plot_data,
+  aes(x = Year, y = Value)
+) +
+  geom_line(
+    aes(group = Measure),
+    color = "#0072B2",
+    linewidth = 1.1
+  ) +
+  geom_point(
+    color = "#0072B2",
+    size = 3
+  ) +
+  facet_wrap(
+    ~ Measure,
+    scales = "free_y",
+    ncol = 1
+  ) +
+  scale_x_continuous(
+    breaks = 2021:2025
+  ) +
+  labs(
+    title = "Canterbury Dwelling Consents and Housing Affordability",
+    subtitle = "2021–2025",
+    x = "Year",
+    y = NULL
+  ) +
+  theme_minimal()
+```
+
+## Finding
+
+The comparison does not show a simple immediate same-year relationship between dwelling consenting and house value-to-income.
+
+Both measures increased from 2021 to 2022. Dwelling consents increased from **7,714 to 8,898**, while the house value-to-income multiple increased from **5.5 to 6.5**, indicating worsening affordability by this measure.
+
+From 2022 to 2024, dwelling consents declined from **8,898 to 6,544**, while the house value-to-income multiple also declined from **6.5 to 5.7**.
+
+In 2025, dwelling consents recovered to **7,316**, while the affordability multiple declined slightly further to **5.6**.
+
+## Potential Project Finding
+
+> The descriptive evidence does not show that higher dwelling consenting activity was associated with an immediate same-year improvement in Canterbury's house value-to-income multiple during 2021–2025.
+
+This should not be interpreted as evidence that housing supply is unimportant. Consents represent planned construction, meaning supply changes may influence housing conditions with a lag.
+
+---
+
+# 16. Dwelling Consents and Mortgage Burden
+
+## Why this comparison is used
+
+Because mortgage burden behaved differently from house value-to-income after 2022, dwelling consents were also compared with mortgage burden.
+
+```{r}
+mortgage_supply_plot <- supply_affordability |>
+  select(
+    Year,
+    AnnualDwellings,
+    MortgageBurden
+  ) |>
+  pivot_longer(
+    cols = c(AnnualDwellings, MortgageBurden),
+    names_to = "Measure",
+    values_to = "Value"
+  ) |>
+  mutate(
+    Measure = recode(
+      Measure,
+      AnnualDwellings = "Dwelling Consents",
+      MortgageBurden = "Mortgage Payment Burden"
+    )
+  )
+
+ggplot(
+  mortgage_supply_plot,
+  aes(x = Year, y = Value)
+) +
+  geom_line(
+    aes(group = Measure),
+    color = "#D55E00",
+    linewidth = 1.1
+  ) +
+  geom_point(
+    color = "#D55E00",
+    size = 3
+  ) +
+  facet_wrap(
+    ~ Measure,
+    scales = "free_y",
+    ncol = 1
+  ) +
+  scale_x_continuous(
+    breaks = 2021:2025
+  ) +
+  labs(
+    title = "Canterbury Dwelling Consents and Mortgage Burden",
+    subtitle = "2021–2025",
+    x = "Year",
+    y = NULL
+  ) +
+  theme_minimal()
+```
+
+## Finding
+
+The descriptive comparison again does not show a consistent same-year relationship.
+
+Dwelling consents increased from **7,714 in 2021 to 8,898 in 2022**, while mortgage burden also increased substantially from **26.2% to 36.8%**.
+
+Consenting activity then declined to **6,959 in 2023** and **6,544 in 2024**, while mortgage burden continued to increase to **39.6%** and **40.2%**.
+
+In 2025, dwelling consents recovered to **7,316**, while mortgage burden declined to **34.0%**.
+
+## Potential Project Finding
+
+> Dwelling consenting activity alone does not appear sufficient to describe recent changes in Canterbury's mortgage payment burden. This motivates investigation of additional factors, particularly financing conditions, inflation, migration, and the value of new building activity.
+
+The results remain descriptive and should not be interpreted as causal.
+
+---
+
+# 17. Value of Consented Building Work per Square Metre
+
+## Why this variable was investigated
+
+The dwelling consent dataset contains more than the number of dwellings.
+
+It also provides `ValuePerSQM`, representing the average value of consented residential building work per square metre.
+
+This may capture a different dimension of housing development than the number of dwellings alone.
+
+It is important not to describe this variable as a complete measure of construction costs because it represents the value recorded in building consent data.
+
+```{r}
+consents_5yr |>
+  summarise(
+    Mean_ValuePerSQM = mean(ValuePerSQM),
+    Median_ValuePerSQM = median(ValuePerSQM),
+    SD_ValuePerSQM = sd(ValuePerSQM),
+    Minimum_ValuePerSQM = min(ValuePerSQM),
+    Maximum_ValuePerSQM = max(ValuePerSQM)
+  )
+
+consents_5yr |>
+  filter(ValuePerSQM == min(ValuePerSQM)) |>
+  select(Quarter, ValuePerSQM)
+
+consents_5yr |>
+  filter(ValuePerSQM == max(ValuePerSQM)) |>
+  select(Quarter, ValuePerSQM)
+```
+
+The quarterly pattern was then plotted.
+
+```{r}
+ggplot(
+  consents_5yr,
+  aes(x = Quarter, y = ValuePerSQM, group = 1)
+) +
+  geom_line(
+    color = "#009E73",
+    linewidth = 1.1
+  ) +
+  geom_point(
+    color = "#009E73",
+    size = 2.5
+  ) +
+  labs(
+    title = "Average Value of Residential Building Work per Square Metre",
+    subtitle = "Canterbury, 2021Q1–2025Q4",
+    x = "Quarter",
+    y = "Average Value of Work per SQM ($)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+```
+
+Annual averages were also calculated.
+
+```{r}
+annual_building_value <- consents_5yr |>
+  group_by(Year) |>
+  summarise(
+    AvgValuePerSQM = mean(ValuePerSQM),
+    AvgValuePerConsent = mean(ValuePerConsent),
+    AvgFloorArea = mean(AvgFloorArea)
+  )
+
+annual_building_value
+```
+
+## Potential Project Finding
+
+> Across 2021Q1–2025Q4, the average value of consented residential building work was approximately $2,669 per square metre, with a standard deviation of approximately $300. The lowest quarterly value was $2,145 in 2021Q2, while the highest was $2,991 in 2023Q4.
+
+The series increased particularly strongly between 2021 and 2023 and subsequently remained relatively high during 2024–2025 rather than returning to its 2021 level.
+
+This makes `ValuePerSQM` a useful candidate predictor for the later quarterly model.
+
+---
+
+# 18. Annual Changes in Building Activity
+
+## Why this analysis is used
+
+Percentage changes help determine whether the rise in value per square metre occurred alongside changes in average floor area and value per consent.
+
+```{r}
+annual_building_value <- annual_building_value |>
+  arrange(Year) |>
+  mutate(
+    ValuePerSQM_PctChange =
+      (AvgValuePerSQM / lag(AvgValuePerSQM) - 1) * 100,
+
+    ValuePerConsent_PctChange =
+      (AvgValuePerConsent / lag(AvgValuePerConsent) - 1) * 100,
+
+    FloorArea_PctChange =
+      (AvgFloorArea / lag(AvgFloorArea) - 1) * 100
+  )
+
+annual_building_value
+```
+
+## Interpretation
+
+Between 2021 and 2023, average value per square metre increased substantially, while average floor area declined.
+
+This indicates that the change in consented building value cannot simply be explained by larger dwellings.
+
+However, composition effects may also be present because the types and locations of dwellings consented can change over time.
+
+---
+
+# 19. Initial QV Dataset Investigation
+
+## Why this dataset was checked
+
+A QV dataset was investigated as a possible source of a higher-frequency housing-value outcome for regression.
+
+A quarterly or monthly Canterbury house-value measure would be preferable to the existing annual affordability series because it would provide substantially more observations for statistical modelling.
+
+```{r}
+library(tidyverse)
+
+qv <- read.csv(file.choose())
+
+names(qv)
+
+dim(qv)
+
+head(qv, 10)
+
+str(qv)
+
+head(qv, 3)
+
+tail(qv, 10)
+
+x <- ts(qv, frequency = 12)
+
+plot(x)
+```
+
+## Finding and Decision
+
+The available QV file contained variables such as an index and price but did not contain sufficiently clear date and Canterbury geography information.
+
+It was subsequently identified as representing **New Zealand overall rather than Canterbury specifically**.
+
+Therefore, it was **not used as the dependent variable for the Canterbury RQ1 regression**.
+
+It may still be useful later for **RQ2**, which compares Canterbury with New Zealand.
+
+This decision avoids incorrectly treating a national housing series as a Canterbury-specific outcome.
+
+---
+
+# 20. CPI and Inflation
+
+## Why inflation was investigated
+
+The earlier affordability analysis identified major changes around 2021–2023. Inflation also changed substantially during this period and may be associated with household costs, building activity, interest-rate conditions, and the wider housing market.
+
+CPI data was therefore investigated as a potential macroeconomic predictor.
+
+```{r}
+library(readxl)
+library(tidyverse)
+
+cpi_file <- file.choose()
+
+excel_sheets(cpi_file)
+```
+
+The raw sheet was inspected first because official spreadsheet files often contain headings or metadata before the actual observations.
+
+```{r}
+cpi_raw <- read_excel(
+  cpi_file,
+  sheet = "consumers-price-index-june-2026",
+  col_names = FALSE
+)
+
+dim(cpi_raw)
+
+cpi_raw[1:20, 1:9]
+```
+
+The dataset was then imported using its proper headings.
+
+```{r}
+cpi <- read_excel(
+  cpi_file,
+  sheet = "consumers-price-index-june-2026"
+)
+
+names(cpi)
+
+sort(unique(cpi$Series_title_1))
+```
+
+## Selecting the All Groups CPI
+
+The New Zealand **All Groups CPI** was selected because it provides a broad measure of consumer-price inflation.
+
+```{r}
+cpi_all <- cpi |>
+  filter(
+    Series_title_1 == "All groups",
+    Period >= 2021.03,
+    Period <= 2025.12
+  )
+
+cpi_all |>
+  count(Series_reference, Group)
+```
+
+The CPI observations were converted into the same quarterly format used by the Canterbury consent dataset.
+
+```{r}
+cpi_5yr <- cpi_all |>
+  mutate(
+    Quarter = case_when(
+      grepl("\\.03$", as.character(Period)) ~ paste0(floor(Period), "Q1"),
+      grepl("\\.06$", as.character(Period)) ~ paste0(floor(Period), "Q2"),
+      grepl("\\.09$", as.character(Period)) ~ paste0(floor(Period), "Q3"),
+      grepl("\\.12$", as.character(Period)) ~ paste0(floor(Period), "Q4")
+    ),
+    CPI = as.numeric(Data_value)
+  ) |>
+  select(Quarter, CPI)
+
+cpi_5yr
+```
+
+## Why year-on-year inflation is used instead of raw CPI
+
+The raw CPI index generally trends upward through time.
+
+Using the raw index directly alongside other trending variables could produce misleading relationships driven partly by common time trends.
+
+Year-on-year inflation was therefore calculated as:
+
+$$
+Inflation_t =
+\left(
+\frac{CPI_t}{CPI_{t-4}} - 1
+\right)
+\times 100
+$$
+
+```{r}
+cpi_5yr <- cpi_5yr |>
+  mutate(
+    Inflation_YoY = (CPI / lag(CPI, 4) - 1) * 100
+  )
+
+cpi_5yr
+```
+
+This initially creates missing inflation observations for 2021 because the calculation requires CPI observations from 2020.
+
+To solve this properly, 2020 observations were temporarily included when calculating the lag.
+
+```{r}
+cpi_reg <- cpi |>
+  filter(
+    Series_title_1 == "All groups",
+    Period >= 2020.03,
+    Period <= 2025.12
+  ) |>
+  mutate(
+    Quarter = case_when(
+      grepl("\\.03$", as.character(Period)) ~ paste0(floor(Period), "Q1"),
+      grepl("\\.06$", as.character(Period)) ~ paste0(floor(Period), "Q2"),
+      grepl("\\.09$", as.character(Period)) ~ paste0(floor(Period), "Q3"),
+      grepl("\\.12$", as.character(Period)) ~ paste0(floor(Period), "Q4")
+    ),
+    CPI = as.numeric(Data_value),
+    Inflation_YoY = (CPI / lag(CPI, 4) - 1) * 100
+  ) |>
+  filter(Period >= 2021.03) |>
+  select(Quarter, CPI, Inflation_YoY)
+
+cpi_reg
+```
+
+## Finding
+
+All 20 quarters from 2021Q1 to 2025Q4 now have an inflation observation.
+
+Inflation increased substantially during 2021 and exceeded **7% during 2022**. It then declined through 2023 and 2024 before increasing moderately during 2025.
+
+## Modelling Decision
+
+`Inflation_YoY` is retained as a candidate explanatory variable.
+
+The CPI data is national rather than Canterbury-specific, so its interpretation in the Canterbury model will be as a **national macroeconomic condition affecting Canterbury**, not a Canterbury-specific price index.
+
+---
+
+# 21. Net Migration
+
+## Why migration was investigated
+
+Migration may affect housing demand through changes in the number of people requiring accommodation.
+
+A New Zealand migration dataset was therefore investigated as another possible demand-side predictor.
+
+```{r}
+migration_file <- file.choose()
+
+excel_sheets(migration_file)
+```
+
+The relevant sheet was imported.
+
+```{r}
+migration <- read_excel(
+  migration_file,
+  sheet = "Sheet1"
+)
+
+names(migration)
+
+str(migration)
+```
+
+## Converting migration to quarterly observations
+
+The source contains a rolling year-ended migration measure.
+
+Therefore, the monthly values should **not be summed**, because each observation already represents a year-ended total.
+
+Instead, March, June, September, and December observations were selected to create one observation for each quarter.
+
+```{r}
+migration_q <- migration |>
+  mutate(
+    Year = lubridate::year(`Year ended`),
+    Month = lubridate::month(`Year ended`),
+    Quarter = paste0(
+      Year,
+      "Q",
+      lubridate::quarter(`Year ended`)
+    )
+  ) |>
+  filter(
+    Year >= 2021,
+    Year <= 2025,
+    Month %in% c(3, 6, 9, 12)
+  ) |>
+  select(
+    Quarter,
+    NetMigration_NZ = `Net migration`
+  )
+
+migration_q
+```
+
+## Finding
+
+The migration series shows substantial changes during the study period, including negative net migration during parts of 2021–2022 and much stronger positive net migration during 2023.
+
+## Important Limitation
+
+This variable represents **New Zealand net migration**, not Canterbury-specific migration.
+
+It is therefore interpreted as a national demand-side and macroeconomic indicator rather than a direct measurement of migration into Canterbury.
+
+It remains a candidate predictor, but this geographic limitation must be acknowledged when interpreting the regression.
+
+---
+
+# 22. Mortgage Interest Rates
+
+## Why mortgage rates were investigated
+
+The earlier affordability analysis provided a strong reason to investigate financing conditions.
+
+Most importantly, Canterbury's mortgage burden increased substantially after 2021 and continued rising even after the house value-to-income multiple began declining.
+
+This suggested that mortgage interest rates could be particularly relevant.
+
+```{r}
+mortgage_file <- file.choose()
+
+mortgage <- read.csv(mortgage_file)
+
+names(mortgage)
+
+str(mortgage)
+
+head(mortgage, 5)
+```
+
+The available variables were checked before selecting the rate used in the model.
+
+```{r}
+names(mortgage)
+```
+
+## Why the 1-year mortgage rate was selected
+
+Mortgage-rate datasets may contain multiple terms that move very similarly through time.
+
+Including several highly correlated mortgage-rate terms in the same small regression could create unnecessary multicollinearity.
+
+The **1-year mortgage rate** was therefore selected as a representative financing variable.
+
+Monthly observations were converted to quarterly averages.
+
+```{r}
+library(dplyr)
+library(lubridate)
+
+mortgage_q <- mortgage |>
+  mutate(
+    Date = dmy(Date),
+    Year = year(Date),
+    Quarter = paste0(Year, "Q", quarter(Date))
+  ) |>
+  filter(
+    Year >= 2021,
+    Year <= 2025
+  ) |>
+  group_by(Quarter) |>
+  summarise(
+    MortgageRate_1yr = mean(X1.year.rate, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+mortgage_q
+```
+
+## Finding
+
+Mortgage rates increased strongly from 2021 through 2023 and remained high during 2024 before declining during 2025.
+
+This timing makes mortgage rates a particularly relevant candidate predictor given the earlier increase in Canterbury mortgage burden.
+
+The available rate series begins after 2021Q1, so the current quarterly dataset has no 1-year mortgage-rate observation for **2021Q1**.
+
+Rather than inventing or artificially imputing a value, this observation is left missing unless an earlier source is later obtained.
+
+---
+
+# 23. Constructing the Quarterly Predictor Dataset
+
+## Why the datasets are joined
+
+At this stage, several candidate explanatory variables have been prepared in a consistent quarterly format.
+
+The objective is to create one master predictor table containing:
+
+- Canterbury dwelling consents
+- Canterbury value of consented building work per square metre
+- New Zealand year-on-year inflation
+- New Zealand net migration
+- 1-year mortgage interest rate
+
+These variables represent different possible mechanisms affecting housing conditions: supply activity, building values, general inflation, demand conditions, and financing costs.
+
+```{r}
+predictors <- consents_5yr |>
+  select(
+    Quarter,
+    Dwellings,
+    ValuePerSQM
+  ) |>
+  left_join(
+    cpi_reg,
+    by = "Quarter"
+  ) |>
+  left_join(
+    migration_q,
+    by = "Quarter"
+  ) |>
+  left_join(
+    mortgage_q,
+    by = "Quarter"
+  ) |>
+  select(
+    Quarter,
+    Dwellings,
+    ValuePerSQM,
+    Inflation_YoY,
+    NetMigration_NZ,
+    MortgageRate_1yr
+  )
+
+predictors
+```
+
+## Finding
+
+The predictor dataset now covers **2021Q1–2025Q4**, giving 20 quarterly periods.
+
+All selected variables are available across the study period except the mortgage rate for 2021Q1.
+
+This means that a regression using the currently available mortgage-rate data would have approximately **19 complete quarterly observations**.
+
+---
+
+# 24. Correlation Between Candidate Predictors
+
+## Why this analysis is necessary before regression
+
+Multiple regression assumes that predictors are not perfect linear combinations of one another.
+
+When predictors are strongly correlated, estimated regression coefficients can become unstable, making it difficult to separate the association of one variable from another.
+
+A correlation matrix is therefore examined before fitting the final model.
+
+```{r}
+predictors |>
+  select(-Quarter) |>
+  cor(
+    use = "pairwise.complete.obs"
+  ) |>
+  round(2)
+```
+
+## Finding
+
+Several relatively strong relationships were identified.
+
+The strongest included approximately:
+
+- Mortgage rate and value per square metre: **0.88**
+- Mortgage rate and net migration: **0.83**
+- Value per square metre and net migration: **0.69**
+- Mortgage rate and dwelling consents: approximately **-0.62**
+
+## Interpretation
+
+These correlations suggest potential **multicollinearity**.
+
+However, variables should not automatically be removed based only on pairwise correlations.
+
+The planned approach is to first fit a theoretically motivated baseline regression once the Canterbury housing outcome is available, then examine diagnostics such as **Variance Inflation Factors (VIF)** and compare smaller models if necessary.
+
+This is especially important because the dataset contains only approximately 19 complete quarterly observations.
+
+---
+
+# 25. Tenancy Dataset Investigation
+
+## Why this dataset was investigated
+
+Rental affordability is another important component of housing affordability.
+
+A detailed tenancy dataset was therefore investigated to determine whether it could provide a Canterbury rental-price outcome or help compare urban and rural areas.
+
+```{r}
+tenancy_file <- file.choose()
+
+tenancy_file
+```
+
+The file used a `.txt` extension but was comma-separated, so it was imported using `read.csv()`.
+
+```{r}
+tenancy <- read.csv(
+  tenancy_file,
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  na.strings = c("NULL", "NA")
+)
+
+dim(tenancy)
+
+names(tenancy)
+
+head(tenancy, 3)
+```
+
+## Investigating geographic identifiers
+
+The dataset contains `Location.Id`, so the next step was to determine whether these codes could be mapped reliably to Canterbury locations.
+
+```{r}
+length(unique(tenancy$Location.Id))
+
+head(
+  sort(unique(tenancy$Location.Id)),
+  30
+)
+
+list.files(
+  "C:/Users/mugha/OneDrive/Desktop/Data science/data309/project",
+  pattern = "location|area|lookup|territorial|tenancy",
+  ignore.case = TRUE
+)
+
+tenancy |>
+  filter(
+    TimeFrame == "1/01/2025",
+    Dwelling.Type == "ALL",
+    Number.Of.Beds == "ALL"
+  ) |>
+  select(
+    Location.Id,
+    Median.Rent
+  ) |>
+  head(20)
+```
+
+The largest location groups were also inspected.
+
+```{r}
+tenancy |>
+  filter(
+    TimeFrame == "1/01/2025",
+    Dwelling.Type == "ALL",
+    Number.Of.Beds == "ALL",
+    !is.na(Location.Id)
+  ) |>
+  arrange(desc(Active.Bonds)) |>
+  select(
+    Location.Id,
+    Active.Bonds,
+    Median.Rent
+  ) |>
+  head(20)
+```
+
+## Finding and Decision
+
+The dataset contains a large number of location codes, but no reliable location-code lookup was identified in the available project files.
+
+One code, `-99`, represented a very large number of active bonds relative to the individual six-digit location codes, suggesting that it may represent a broad aggregate. However, its exact meaning should not be assumed without documentation.
+
+Therefore, the tenancy dataset was **not used for Canterbury regression or urban-rural analysis at this stage**.
+
+A reliable location-code mapping would be required before geographic conclusions could be made.
+
+---
+
+# 26. Further QV Dataset Check
+
+## Why this additional check was performed
+
+Because the QV dataset was a possible source of the missing quarterly housing outcome, its dimensions, variable names, first observations, and metadata attributes were checked more carefully.
+
+```{r}
+dim(qv)
+
+names(qv)
+
+head(qv, 10)
+
+attributes(qv)
+```
+
+## Decision
+
+The available data still did not provide sufficient Canterbury-specific geographic and date information for the intended regression.
+
+The QV series is therefore not used as Canterbury's dependent variable.
+
+---
+
+# 27. Canterbury ECAN Property Dataset
+
+## Why this dataset was investigated
+
+The project also asks whether housing-affordability factors differ between urban and rural parts of Canterbury.
+
+The ECAN property dataset contains hundreds of thousands of individual property records across Canterbury local councils, making it potentially useful for geographic analysis and possibly later machine-learning analysis.
+
+Before using it, however, we needed to determine whether it was longitudinal or primarily cross-sectional.
+
+```{r}
+properties |>
+  summarise(
+    earliest_publish = min(PublishDate, na.rm = TRUE),
+    latest_publish = max(PublishDate, na.rm = TRUE),
+    earliest_process = min(ProcessDate, na.rm = TRUE),
+    latest_process = max(ProcessDate, na.rm = TRUE)
+  )
+
+unique(properties$LocalCouncil)
+
+head(
+  sort(
+    table(properties$Category),
+    decreasing = TRUE
+  ),
+  15
+)
+
+head(
+  sort(
+    table(properties$LandUse),
+    decreasing = TRUE
+  ),
+  15
+)
+```
+
+The number of unique valuation numbers was then compared with the number of rows.
+
+```{r}
+properties |>
+  summarise(
+    rows = n(),
+    unique_properties = n_distinct(ValuationNo),
+    duplicate_property_rows = rows - unique_properties
+  )
+
+properties |>
+  count(ValuationNo) |>
+  arrange(desc(n)) |>
+  head(10)
+```
+
+## Finding
+
+The ECAN property dataset contains **328,883 records representing 328,763 unique valuation numbers**.
+
+Only **120 records** are duplicates by valuation number.
+
+## Modelling Decision
+
+The dataset is therefore treated primarily as **cross-sectional property-level data rather than a longitudinal panel of repeated valuations**.
+
+Publish dates will not be used to construct a quarterly property-value time series because changes across publish dates may reflect changes in which properties are represented rather than changes in the value of the same properties.
+
+Instead, this dataset is retained for **geographic analysis within Canterbury**, particularly RQ3.
+
+---
+
+# 28. Missing Values and Property Valuations
+
+## Why this check is used
+
+Before comparing councils, missingness and the overall distribution of the main valuation measures were examined.
+
+```{r}
+properties |>
+  summarise(
+    missing_capital = sum(is.na(CapitalValue)),
+    missing_land = sum(is.na(LandValue)),
+    missing_improvements = sum(is.na(ImprovementsValue)),
+    median_capital = median(CapitalValue, na.rm = TRUE),
+    median_land = median(LandValue, na.rm = TRUE),
+    median_improvements = median(ImprovementsValue, na.rm = TRUE)
+  )
+```
+
+## Finding
+
+Approximately 16,034 records were missing each of the main valuation measures.
+
+Across the available records, the overall medians were approximately:
+
+- Capital value: **$660,000**
+- Land value: **$360,000**
+- Improvements value: **$305,000**
+
+These figures provide a broad description of the dataset but should not yet be interpreted as residential housing values because multiple property categories are included.
+
+---
+
+# 29. Geographic Variation Across Canterbury Councils
+
+## Why this comparison is used
+
+To assess whether property values vary geographically across Canterbury, median values were calculated for each local council.
+
+Medians were used because property-value distributions may contain extreme observations that can strongly influence means.
+
+```{r}
+council_values <- properties |>
+  filter(!is.na(CapitalValue)) |>
+  group_by(LocalCouncil) |>
+  summarise(
+    Properties = n(),
+    MedianCapitalValue = median(CapitalValue),
+    MedianLandValue = median(LandValue),
+    MedianImprovementsValue = median(ImprovementsValue),
+    .groups = "drop"
+  ) |>
+  arrange(desc(MedianCapitalValue))
+
+council_values
+```
+
+## Potential Project Finding
+
+> Initial exploratory analysis identified substantial variation in property valuations across Canterbury's local councils. Median capital values ranged from approximately $200,000 in Waimate District to $780,000 in Selwyn District. Selwyn ($780,000) and Waimakariri ($735,000) had higher median capital values than Christchurch City ($660,000).
+
+## Important Limitation
+
+These results currently include **all available property categories**.
+
+They therefore should not yet be interpreted as a residential-housing affordability comparison or as an urban-versus-rural result.
+
+Residential properties must first be identified reliably.
+
+---
+
+# 30. Investigating Land-Use Categories
+
+## Why this check was necessary
+
+The large differences between councils could potentially reflect differences in the types of properties contained in each area.
+
+The `LandUse` variable was therefore examined to determine whether residential properties could be isolated.
+
+```{r}
+properties |>
+  filter(!is.na(CapitalValue)) |>
+  group_by(LandUse) |>
+  summarise(
+    Properties = n(),
+    MedianCapitalValue = median(CapitalValue),
+    .groups = "drop"
+  ) |>
+  arrange(desc(Properties)) |>
+  head(15)
+```
+
+## Finding
+
+The land-use groups have dramatically different typical capital values.
+
+For example, one group had a median capital value of approximately **$9,000**, while another had a median above **$2 million**.
+
+This confirms that using all 328,000+ properties together would distort a housing-focused analysis.
+
+`LandUse == 91` contains more than 220,000 records and a median capital value around $665,000, making it potentially relevant to residential property.
+
+However, the numerical code alone is not sufficient evidence that it represents residential housing.
+
+---
+
+# 31. Inspecting LandUse 91
+
+## Why this analysis is used
+
+A small sample of `LandUse == 91` was inspected to understand what kinds of records it contains.
+
+```{r}
+properties |>
+  filter(LandUse == 91) |>
+  select(
+    StreetAddress,
+    LocalityName,
+    LandUse,
+    Category,
+    CapitalValue,
+    LandValue,
+    Improvements
+  ) |>
+  head(20)
+
+unique(properties$DataSource)
+```
+
+## Finding and Decision
+
+The sample contains ordinary-looking property addresses, suggesting that the category may include residential properties.
+
+However, this does **not** establish the official meaning of code 91.
+
+Therefore, `LandUse == 91` will not be labelled residential until a reliable codebook or metadata source confirms its meaning.
+
+This prevents an unsupported classification from affecting RQ3.
+
+---
+
+# 32. Local Housing Statistics Dataset
+
+## Why this dataset was investigated
+
+At this point, the main quarterly predictor dataset was nearly complete, but a Canterbury-specific quarterly housing-value outcome was still missing.
+
+`Local_Housing_Stats.csv` was therefore investigated to determine whether it contained a house-price, house-value, rent, or affordability measure that could serve as the dependent variable.
+
+```{r}
+list.files(
+  "C:/Users/mugha/OneDrive/Desktop/Data science/data309/project/Local_Housing_Stats",
+  recursive = TRUE
+)
+
+housing_local <- read.csv(
+  "C:/Users/mugha/OneDrive/Desktop/Data science/data309/project/Local_Housing_Stats/Local_Housing_Stats.csv"
+)
+
+sort(unique(housing_local$series))
+```
+
+## Finding
+
+The dataset does **not** contain a house-price or house-value time series suitable for the intended quarterly regression.
+
+However, it contains several potentially useful rental-affordability indicators, including:
+
+- Households whose rent is equal to or more than 30% of income
+- Households whose rent is equal to or more than 40% of income
+- Households whose rent is equal to or more than 50% of income
+- Housing Register measures
+- Total renting households
+
+These could potentially provide useful contextual or geographic information.
+
+Before using them, their temporal coverage was checked.
+
+```{r}
+housing_local |>
+  dplyr::filter(
+    series == "Households whose rent is equal to or more than 30% of income"
+  ) |>
+  dplyr::select(
+    Group_Name,
+    date,
+    year,
+    value
+  ) |>
+  head(20)
+```
+
+## Finding
+
+The selected rent-to-income measure contains observations for years such as **2001, 2006, 2013, and 2018**.
+
+Therefore, it does not provide the quarterly 2021–2025 outcome required for the main regression.
+
+## Decision
+
+`Local_Housing_Stats.csv` is **not used as the dependent variable for the quarterly regression**.
+
+It is retained as a possible supplementary source for historical rental-affordability and geographic analysis.
+
+---
+
+# 33. Current Modelling Position
+
+The exploratory analysis has now produced a regression-ready set of candidate explanatory variables:
+
+| Variable | Interpretation | Geographic Level |
+|---|---|---|
+| `Dwellings` | New dwelling consenting activity | Canterbury |
+| `ValuePerSQM` | Value of consented residential building work per square metre | Canterbury |
+| `Inflation_YoY` | Year-on-year CPI inflation | New Zealand |
+| `NetMigration_NZ` | Net migration | New Zealand |
+| `MortgageRate_1yr` | Average 1-year residential mortgage rate | New Zealand |
+
+The quarterly predictor dataset covers **2021Q1–2025Q4**, although the mortgage-rate series currently begins in 2021Q2.
+
+The analysis has also identified potential multicollinearity between several predictors, particularly mortgage rates, migration, and value per square metre.
+
+Therefore, the eventual regression should not be interpreted solely from individual p-values without first checking model diagnostics.
+
+---
+
+# 34. Why Regression Has Not Yet Been Run
+
+The predictors are ready, but a regression also requires a dependent variable:
+
+$$
+Y = \text{Canterbury housing outcome}
+$$
+
+The available annual affordability measures contain only five observations during 2021–2025, which is insufficient for a multivariable regression containing several predictors.
+
+The QV dataset examined earlier represents New Zealand overall rather than Canterbury and therefore should not be substituted for a Canterbury outcome.
+
+The local housing statistics dataset also does not provide a quarterly 2021–2025 Canterbury house-value measure.
+
+Therefore, fitting the main regression before obtaining a suitable outcome would require either using the wrong geography or using too few observations.
+
+Neither approach is statistically defensible.
+
+---
+
+# 35. Next Required Step
+
+The immediate priority is to obtain a **Canterbury-specific monthly or quarterly housing-value outcome covering 2021–2025**.
+
+Suitable measures could include:
+
+- House Price Index
+- Average house value
+- Median house value
+- Median house sale price
+- Another documented Canterbury housing-value series
+
+Monthly data is acceptable because it can be converted to quarterly observations.
+
+Once a suitable outcome is obtained, it will be joined to the existing predictor dataset using `Quarter`.
+
+The resulting modelling dataset will have the general structure:
+
+```text
+Quarter
+HousingOutcome
+Dwellings
+ValuePerSQM
+Inflation_YoY
+NetMigration_NZ
+MortgageRate_1yr
+```
+
+The first regression will then be fitted as a **baseline explanatory model**, followed by:
+
+1. examination of regression coefficients and uncertainty;
+2. VIF analysis for multicollinearity;
+3. residual diagnostics;
+4. checks for temporal dependence;
+5. comparison with smaller theoretically motivated models;
+6. consideration of lagged predictors where appropriate.
+
+Because only approximately 19–20 quarterly observations are available, complex machine-learning models will not automatically be preferred over regression.
+
+The regression and its diagnostics should be completed first.
+
+---
+
+# 36. Overall Analytical Story So Far
+
+The analysis began by examining Canterbury's two available affordability measures.
+
+The house value-to-income multiple deteriorated sharply during **2021–2022**, reaching 6.5 in 2022, before partially improving. Mortgage burden followed a different pattern and continued increasing through 2024 even after the house value-to-income multiple had started declining.
+
+This divergence motivated investigation of factors beyond house values alone.
+
+Population was examined first, but only three recent overlapping Canterbury observations were available, making regression inappropriate.
+
+Housing supply was then investigated using quarterly dwelling consents. Canterbury consenting activity peaked in 2022, declined during 2023–2024, and partially recovered in 2025. However, descriptive comparisons did not reveal a simple same-year relationship between consenting activity and affordability, and consents may affect housing conditions with a lag.
+
+The value of consented building work per square metre increased strongly between 2021 and 2023 and remained elevated, so it was retained as another possible housing-market predictor.
+
+National inflation was converted to year-on-year quarterly inflation to avoid relying on the strongly trending raw CPI index. National net migration was included as a broader demand-side indicator, while the 1-year mortgage rate was selected to represent financing conditions.
+
+The mortgage-rate variable is particularly important to investigate because the earlier affordability analysis showed mortgage burden continuing to increase even after the house value-to-income multiple began improving.
+
+The resulting quarterly predictor dataset is now largely complete. Correlation analysis, however, shows strong relationships between some predictors, meaning multicollinearity will need to be assessed carefully once regression begins.
+
+Several alternative datasets were also investigated rather than being used automatically. The QV series was not used for RQ1 because it represented New Zealand rather than Canterbury. The tenancy dataset was parked because its location identifiers could not yet be reliably mapped. The ECAN property dataset was identified as primarily cross-sectional rather than a quarterly valuation panel and is therefore more suitable for geographic analysis under RQ3. The Local Housing Statistics dataset contains useful rental-affordability information, but its relevant rent-to-income observations are not available quarterly for 2021–2025.
+
+The main remaining requirement is therefore a documented **Canterbury monthly or quarterly house-price or house-value series for 2021–2025**. Once this dependent variable is obtained, it can be joined to the completed quarterly predictors and the main regression analysis can begin.
+
+
+```{r}
+median_house <- read.csv(
+  "C:/Users/mugha/OneDrive/Desktop/Data science/data309/project/median-average-house-value.csv"
+)
+
+mean_house_1 <- read.csv(
+  "C:/Users/mugha/OneDrive/Desktop/Data science/data309/project/mean-average-house-value (1).csv"
+)
+
+mean_house_2 <- read.csv(
+  "C:/Users/mugha/OneDrive/Desktop/Data science/data309/project/mean-average-house-value (2).csv"
+)
+
+mean_house_3 <- read.csv(
+  "C:/Users/mugha/OneDrive/Desktop/Data science/data309/project/mean-average-house-value (3).csv"
+)
+
+mean_house <- read.csv(
+  "C:/Users/mugha/OneDrive/Desktop/Data science/data309/project/mean-average-house-value.csv"
+)
+```
+
+```{r}
+# Compare dataset dimensions
+dim(median_house)
+dim(mean_house_1)
+dim(mean_house_2)
+dim(mean_house_3)
+dim(mean_house)
+
+# Compare column names
+names(median_house)
+names(mean_house_1)
+names(mean_house_2)
+names(mean_house_3)
+names(mean_house)
+
+# Inspect first observations
+head(median_house, 10)
+head(mean_house_1, 10)
+head(mean_house_2, 10)
+head(mean_house_3, 10)
+head(mean_house, 10)
+```
+## Canterbury House Value Outcome — Dataset Assessment
+
+Several additional house-value datasets were examined to identify a suitable dependent variable for the regression analysis.
+
+The datasets contain Canterbury regional house-value information in both level and percentage-change form. The annual house-value level series shows substantial growth over the longer period and particularly large movements during the early 2020s. Canterbury's reported house-value level increased from approximately $573,384 in 2021 to $747,544 in 2022, before declining to approximately $668,441 in 2023. Values subsequently increased to approximately $706,148 in 2024 and $711,271 in 2025.
+
+This pattern is consistent with the earlier affordability analysis, which also identified 2021–2022 as a period of particularly large changes in Canterbury housing conditions.
+
+However, inspection of the datasets shows that the house-value observations are annual rather than quarterly. This creates an important modelling limitation. The predictor dataset constructed previously contains 20 quarterly observations from 2021Q1 to 2025Q4, whereas the available house-value series contains only five annual observations over the same study period.
+
+The annual house-value observations will not be artificially repeated across quarters because doing so would create pseudo-observations and overstate the amount of independent information available for regression.
+
+Therefore, the annual house-value series is retained as an important descriptive outcome and as a possible annual modelling variable, but a quarterly or monthly Canterbury house-value series remains preferable for the main multivariable regression.
+
+
+```{r}
+# ---------------------------------------------------------
+# CHECK TEMPORAL COVERAGE OF HOUSE VALUE DATA
+# ---------------------------------------------------------
+
+# Purpose:
+# Before deciding whether the house-value data can be used
+# in the quarterly regression, confirm the number of unique
+# time observations and the years covered by each dataset.
+
+cat("Median dataset:\n")
+print(range(median_house$Year, na.rm = TRUE))
+print(length(unique(median_house$Year)))
+
+cat("\nMean house dataset 1:\n")
+print(range(mean_house_1$Year, na.rm = TRUE))
+print(length(unique(mean_house_1$Year)))
+
+cat("\nMean house dataset 2:\n")
+print(range(mean_house_2$Year, na.rm = TRUE))
+print(length(unique(mean_house_2$Year)))
+
+cat("\nMean house dataset 3:\n")
+print(range(mean_house_3$Year, na.rm = TRUE))
+print(length(unique(mean_house_3$Year)))
+```
+```{r}
+tail(median_house, 10)
+tail(mean_house_1, 10)
+tail(mean_house_2, 10)
+tail(mean_house_3, 10)
+```
+
+## Assessment of Canterbury House-Value Data Frequency
+
+Inspection of the available house-value datasets confirms that all identified Canterbury house-value series are reported annually rather than quarterly.
+
+The median house-value dataset contains nine annual observations from 2018 to 2026. The other house-value datasets contain longer annual histories extending from approximately 2005 or 2006 to 2026. Therefore, none of these datasets provides the quarterly dependent variable required to directly match the 20-quarter predictor dataset constructed for 2021Q1–2025Q4.
+
+The available annual series nevertheless provide useful descriptive evidence. One Canterbury house-value series increased from $573,384 in 2021 to $747,544 in 2022, before declining to $668,441 in 2023 and subsequently recovering to $706,148 in 2024 and $711,271 in 2025. A second annual Canterbury series follows a similar pattern, increasing from $564,041 in 2021 to $716,312 in 2022, declining to $677,876 in 2023, and then increasing to $708,790 in 2024 and $718,877 in 2025.
+
+The corresponding annual percentage-change data confirm that the large movements in the level series are internally consistent. In particular, the second series records Canterbury changes of 18.7% in 2021, 27.0% in 2022, -5.4% in 2023, 4.6% in 2024 and 1.4% in 2025.
+
+These annual observations will not be duplicated across quarters, as doing so would create artificial pseudo-observations and exaggerate the effective sample size. Instead, the annual house-value series will be retained for descriptive analysis while a genuinely quarterly housing outcome is sought for the main regression analysis.
+
+```{r}
+housing_q <- data.frame(
+  Quarter = paste0(
+    rep(2021:2025, each = 4),
+    "Q",
+    rep(1:4, times = 5)
+  ),
+
+  HPI = c(
+    # 2021
+    3379, 3495, 3704, 3920,
+
+    # 2022
+    3846, 3681, 3548, 3484,
+
+    # 2023
+    3382, 3349, 3404, 3464,
+
+    # 2024
+    3470, 3398, 3381, 3414,
+
+    # 2025
+    3412, 3375, 3376, 3392
+  )
+)
+
+housing_q
+
+# Check the structure and first/last observations
+check_df <- function(x, name) {
+  cat("\n\n==========", name, "==========\n")
+  cat("Dimensions:", nrow(x), "rows x", ncol(x), "columns\n")
+  cat("Columns:", paste(names(x), collapse = " | "), "\n")
+  print(head(x, 4))
+  cat("...\n")
+  print(tail(x, 4))
+}
+
+check_df(housing_q, "housing_q")
+check_df(migration_q, "migration_q")
+check_df(cpi_5yr, "cpi_5yr")
+check_df(consents_5yr, "consents_5yr")
+check_df(affordability_5yr, "affordability_5yr")
+```
+```{r}
+library(dplyr)
+
+# --------------------------------------------------
+# Build master quarterly dataset: 2021Q1–2025Q4
+# --------------------------------------------------
+
+master_q <- housing_q %>%
+  left_join(migration_q, by = "Quarter") %>%
+  left_join(cpi_5yr, by = "Quarter") %>%
+  left_join(
+    consents_5yr %>%
+      select(
+        Quarter,
+        Dwellings,
+        AvgFloorArea,
+        ValuePerSQM,
+        TotalValue,
+        TotalFloorArea,
+        ValuePerConsent
+      ),
+    by = "Quarter"
+  ) %>%
+  mutate(
+    Year = as.numeric(substr(Quarter, 1, 4))
+  ) %>%
+  left_join(
+    affordability_5yr %>%
+      select(Year, ValueIncome, MortgageBurden),
+    by = "Year"
+  ) %>%
+  arrange(Year, Quarter)
+
+# Convert to normal data.frame to avoid tibble printing error
+master_q <- as.data.frame(master_q)
+
+# --------------------------------------------------
+# Check final dataset
+# --------------------------------------------------
+
+cat("\nDimensions:\n")
+print(dim(master_q))
+
+cat("\nColumn names:\n")
+print(names(master_q))
+
+cat("\nMaster dataset:\n")
+print.data.frame(master_q)
+
+cat("\nMissing values:\n")
+print(colSums(is.na(master_q)))
+
+cat("\nDuplicate quarters:\n")
+print(anyDuplicated(master_q$Quarter))
+
+cat("\nQuarter coverage:\n")
+print(master_q$Quarter)
+
+write.csv(master_q, "master_housing_2021_2025.csv", row.names = FALSE)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# ==================================================
+# 1. DESCRIPTIVE STATISTICS
+# ==================================================
+
+analysis_vars <- master_q %>%
+  select(
+    HPI,
+    NetMigration_NZ,
+    Inflation_YoY,
+    Dwellings,
+    AvgFloorArea,
+    ValuePerSQM,
+    ValuePerConsent
+  )
+
+descriptive_stats <- data.frame(
+  Variable = names(analysis_vars),
+  Mean = sapply(analysis_vars, mean, na.rm = TRUE),
+  Median = sapply(analysis_vars, median, na.rm = TRUE),
+  SD = sapply(analysis_vars, sd, na.rm = TRUE),
+  Min = sapply(analysis_vars, min, na.rm = TRUE),
+  Max = sapply(analysis_vars, max, na.rm = TRUE)
+)
+
+print(descriptive_stats)
+
+
+# ==================================================
+# 2. CORRELATION MATRIX
+# ==================================================
+
+correlation_matrix <- cor(
+  analysis_vars,
+  use = "pairwise.complete.obs",
+  method = "pearson"
+)
+
+print(round(correlation_matrix, 3))
+
+
+# ==================================================
+# 3. INDIVIDUAL CORRELATION TESTS WITH HPI
+# ==================================================
+
+cor.test(master_q$HPI, master_q$NetMigration_NZ)
+
+cor.test(
+  master_q$HPI,
+  master_q$Inflation_YoY,
+  use = "complete.obs"
+)
+
+cor.test(master_q$HPI, master_q$Dwellings)
+
+cor.test(master_q$HPI, master_q$ValuePerSQM)
+
+
+# ==================================================
+# 4. HPI TREND
+# ==================================================
+
+ggplot(master_q, aes(x = Quarter, y = HPI, group = 1)) +
+  geom_line(linewidth = 1.2, colour = "#0072B2") +
+  geom_point(size = 2.5, colour = "#0072B2") +
+  labs(
+    title = "New Zealand House Price Index, 2021–2025",
+    x = "Quarter",
+    y = "House Price Index (HPI)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+
+# ==================================================
+# 5. MIGRATION VS HPI
+# ==================================================
+
+ggplot(master_q, aes(x = NetMigration_NZ, y = HPI)) +
+  geom_point(size = 3, colour = "#009E73") +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    colour = "black"
+  ) +
+  labs(
+    title = "Net Migration and House Price Index",
+    x = "Quarterly Net Migration",
+    y = "House Price Index"
+  ) +
+  theme_minimal()
+
+
+# ==================================================
+# 6. HOUSING SUPPLY VS HPI
+# ==================================================
+
+ggplot(master_q, aes(x = Dwellings, y = HPI)) +
+  geom_point(size = 3, colour = "#D55E00") +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    colour = "black"
+  ) +
+  labs(
+    title = "Dwelling Consents and House Price Index",
+    x = "Dwelling Consents",
+    y = "House Price Index"
+  ) +
+  theme_minimal()
+
+
+# ==================================================
+# 7. CONSTRUCTION COST VS HPI
+# ==================================================
+
+ggplot(master_q, aes(x = ValuePerSQM, y = HPI)) +
+  geom_point(size = 3, colour = "#CC79A7") +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    colour = "black"
+  ) +
+  labs(
+    title = "Construction Value per Square Metre and HPI",
+    x = "Value per Square Metre ($)",
+    y = "House Price Index"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# ============================================================
+# 1. CREATE CHANGE AND LAG VARIABLES
+# ============================================================
+
+model_q <- master_q %>%
+  arrange(Year, Quarter) %>%
+  mutate(
+    # Quarterly percentage change in HPI
+    HPI_growth = 100 * (HPI / lag(HPI) - 1),
+
+    # Changes in explanatory variables
+    Migration_change = NetMigration_NZ - lag(NetMigration_NZ),
+    Inflation_change = Inflation_YoY - lag(Inflation_YoY),
+    Dwellings_change = 100 * (Dwellings / lag(Dwellings) - 1),
+    Cost_growth = 100 * (ValuePerSQM / lag(ValuePerSQM) - 1),
+
+    # Lagged explanatory variables
+    Migration_lag1 = lag(NetMigration_NZ, 1),
+    Inflation_lag1 = lag(Inflation_YoY, 1),
+    Dwellings_lag1 = lag(Dwellings, 1),
+    Cost_lag1 = lag(ValuePerSQM, 1)
+  )
+
+
+# ============================================================
+# 2. LOOK AT HPI QUARTERLY GROWTH
+# ============================================================
+
+print(
+  model_q %>%
+    select(
+      Quarter,
+      HPI,
+      HPI_growth,
+      NetMigration_NZ,
+      Inflation_YoY,
+      Dwellings,
+      ValuePerSQM
+    ),
+  row.names = FALSE
+)
+
+
+# ============================================================
+# 3. CORRELATIONS USING CHANGES
+# ============================================================
+
+change_vars <- model_q %>%
+  select(
+    HPI_growth,
+    Migration_change,
+    Inflation_change,
+    Dwellings_change,
+    Cost_growth
+  )
+
+change_cor <- cor(
+  change_vars,
+  use = "pairwise.complete.obs",
+  method = "pearson"
+)
+
+cat("\nCORRELATIONS USING QUARTERLY CHANGES\n")
+print(round(change_cor, 3))
+
+
+# ============================================================
+# 4. TEST INDIVIDUAL CHANGE RELATIONSHIPS
+# ============================================================
+
+cat("\nHPI GROWTH VS MIGRATION CHANGE\n")
+print(
+  cor.test(
+    model_q$HPI_growth,
+    model_q$Migration_change,
+    use = "complete.obs"
+  )
+)
+
+cat("\nHPI GROWTH VS DWELLING CHANGE\n")
+print(
+  cor.test(
+    model_q$HPI_growth,
+    model_q$Dwellings_change,
+    use = "complete.obs"
+  )
+)
+
+cat("\nHPI GROWTH VS CONSTRUCTION COST GROWTH\n")
+print(
+  cor.test(
+    model_q$HPI_growth,
+    model_q$Cost_growth,
+    use = "complete.obs"
+  )
+)
+
+
+# ============================================================
+# 5. TEST LAGGED RELATIONSHIPS
+# ============================================================
+
+cat("\nHPI GROWTH VS LAGGED MIGRATION\n")
+print(
+  cor.test(
+    model_q$HPI_growth,
+    model_q$Migration_lag1,
+    use = "complete.obs"
+  )
+)
+
+cat("\nHPI GROWTH VS LAGGED DWELLING CONSENTS\n")
+print(
+  cor.test(
+    model_q$HPI_growth,
+    model_q$Dwellings_lag1,
+    use = "complete.obs"
+  )
+)
+
+
+# ============================================================
+# 6. SIMPLE REGRESSION MODELS
+# ============================================================
+
+model_migration <- lm(
+  HPI_growth ~ Migration_lag1,
+  data = model_q
+)
+
+model_supply <- lm(
+  HPI_growth ~ Dwellings_lag1,
+  data = model_q
+)
+
+model_cost <- lm(
+  HPI_growth ~ Cost_growth,
+  data = model_q
+)
+
+cat("\nMIGRATION MODEL\n")
+print(summary(model_migration))
+
+cat("\nSUPPLY MODEL\n")
+print(summary(model_supply))
+
+cat("\nCONSTRUCTION COST MODEL\n")
+print(summary(model_cost))
+
+
+# ============================================================
+# 7. SMALL MULTIPLE REGRESSION
+# ============================================================
+
+model_combined <- lm(
+  HPI_growth ~ Migration_lag1 +
+    Dwellings_lag1 +
+    Cost_growth,
+  data = model_q
+)
+
+cat("\nCOMBINED MODEL\n")
+print(summary(model_combined))
+
+
+# ============================================================
+# 8. PLOT QUARTERLY HPI GROWTH
+# ============================================================
+
+ggplot(
+  model_q,
+  aes(x = Quarter, y = HPI_growth, group = 1)
+) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed",
+    colour = "grey50"
+  ) +
+  geom_line(
+    linewidth = 1.1,
+    colour = "#0072B2"
+  ) +
+  geom_point(
+    size = 2.5,
+    colour = "#0072B2"
+  ) +
+  labs(
+    title = "Quarterly Change in New Zealand House Prices",
+    subtitle = "House Price Index, 2021–2025",
+    x = "Quarter",
+    y = "Quarterly HPI change (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+```
+
+```{r}
+ggplot(
+  model_q %>% filter(!is.na(HPI_growth)),
+  aes(x = Quarter, y = HPI_growth, group = 1)
+) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed",
+    colour = "grey50"
+  ) +
+  geom_line(
+    linewidth = 1.1,
+    colour = "#0072B2"
+  ) +
+  geom_point(
+    size = 2.5,
+    colour = "#0072B2"
+  ) +
+  labs(
+    title = "Quarterly Change in New Zealand House Prices",
+    subtitle = "House Price Index, 2021–2025",
+    x = "Quarter",
+    y = "Quarterly HPI change (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+```{r}
+# Correlations between quarterly changes
+round(change_cor, 3)
+
+# Main multiple regression
+summary(model_combined)
+```
+```{r}
+model_q <- model_q %>%
+  mutate(
+    HPI_growth_lag1 = lag(HPI_growth, 1)
+  )
+
+# Test persistence in house-price growth
+model_persistence <- lm(
+  HPI_growth ~ HPI_growth_lag1,
+  data = model_q
+)
+
+summary(model_persistence)
+
+# Then compare with the explanatory variables
+model_full <- lm(
+  HPI_growth ~ HPI_growth_lag1 +
+    Migration_lag1 +
+    Dwellings_lag1 +
+    Cost_growth,
+  data = model_q
+)
+
+summary(model_full)
+
+# Compare models
+AIC(model_persistence, model_combined, model_full)
+```
+
+```{r}
+nobs(model_persistence)
+nobs(model_combined)
+nobs(model_full)
+
+par(mfrow = c(2, 2))
+plot(model_persistence)
+par(mfrow = c(1, 1))
+
+# Residual autocorrelation
+acf(residuals(model_persistence))
+
+# Durbin-Watson test
+library(lmtest)
+dwtest(model_persistence)
+
+```
+
+---
+title: "New Zealand Housing Market Analysis 2021–2025"
+author: "Group Analysis"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+# 1. Research Objective
+
+This analysis investigates changes in the New Zealand housing market
+between 2021 and 2025. The analysis focuses on house price growth and
+its relationship with migration, dwelling consents, inflation and
+construction costs.
+
+The analysis uses exploratory data analysis, correlation analysis and
+regression modelling. Particular attention is given to whether previous
+house price growth helps explain subsequent quarterly house price growth.
+
+
+# 2. Dataset
+
+```{r dataset-summary}
+dim(master_q)
+names(master_q)
+summary(master_q)
+colSums(is.na(master_q))
+```
+
+The master dataset contains quarterly observations from 2021Q1 to
+2025Q4. Variables include the House Price Index (HPI), net migration,
+CPI/inflation, dwelling consents, construction measures and housing
+affordability indicators.
+
+The first four observations of Inflation_YoY are unavailable because
+a year-on-year growth rate requires observations from four quarters
+earlier.
+
+
+# 3. Exploratory Data Analysis
+
+## 3.1 House Price Index
+
+```{r hpi-plot, fig.width=10, fig.height=5}
+# PUT YOUR EXISTING HPI GRAPH CODE HERE
+```
+
+The HPI increased rapidly during 2021, reaching 3920 in 2021Q4.
+It subsequently declined through 2022 and reached 3349 in 2023Q2.
+From 2023 onward, the index was considerably more stable, fluctuating
+around the mid-3300 to mid-3400 range.
+
+This indicates that the 2021–2025 period contains distinct phases:
+rapid appreciation, correction, and subsequent relative stabilisation.
+
+
+## 3.2 Quarterly HPI Growth
+
+```{r hpi-growth, fig.width=10, fig.height=5}
+# PUT YOUR EXISTING QUARTERLY HPI GROWTH GRAPH CODE HERE
+```
+
+Quarterly growth shows the turning points more clearly than the HPI
+level. Strong positive growth during 2021 was followed by several
+quarters of negative growth during 2022 and early 2023. Growth became
+closer to zero during 2024–2025.
+
+For this reason, HPI growth is used as the dependent variable in the
+main regression analysis rather than the HPI level.
+
+
+# 4. Correlation Analysis
+
+```{r correlations}
+round(correlation, 3)
+```
+
+The level-data correlations showed several relationships. However,
+correlation does not establish causation and some correlations may
+reflect common time trends.
+
+For this reason, the regression analysis primarily examines quarterly
+changes and lagged variables rather than relying only on correlations
+between levels.
+
+
+# 5. Regression Analysis
+
+## 5.1 Model 1 — HPI Persistence
+
+### Reason for model
+
+This model tests whether house price growth in one quarter is associated
+with house price growth in the following quarter.
+
+```{r persistence}
+reg_simple <- lm(
+  HPI_growth ~ HPI_growth_lag1,
+  data = model_q
+)
+
+summary(reg_simple)
+confint(reg_simple)
+```
+
+### Interpretation
+
+The estimated coefficient on lagged HPI growth is approximately 0.596.
+It is statistically significant (p = 0.0058).
+
+The model has an R-squared of approximately 0.387, meaning previous
+quarter HPI growth accounts for about 38.7% of the observed variation
+in current quarterly HPI growth within this sample.
+
+The positive coefficient provides evidence of short-run persistence:
+stronger house price growth tends to be followed by stronger growth,
+while weaker growth tends to persist into the following quarter.
+
+This is an association and should not be interpreted as establishing
+a causal effect.
+
+
+## 5.2 Model 2 — Migration
+
+### Reason for model
+
+Net migration can affect housing demand. This simple model tests whether
+lagged migration is associated with subsequent quarterly HPI growth
+without additional controls.
+
+```{r migration}
+reg_migration <- lm(
+  HPI_growth ~ Migration_lag1,
+  data = model_q
+)
+
+summary(reg_migration)
+confint(reg_migration)
+```
+
+### Interpretation
+
+WRITE INTERPRETATION AFTER RUNNING MODEL.
+
+
+## 5.3 Model 3 — Housing Supply
+
+### Reason for model
+
+Dwelling consents are used as an indicator of future housing supply.
+The model tests whether lagged dwelling consents are associated with
+subsequent HPI growth.
+
+```{r supply}
+reg_supply <- lm(
+  HPI_growth ~ Dwellings_lag1,
+  data = model_q
+)
+
+summary(reg_supply)
+confint(reg_supply)
+```
+
+### Interpretation
+
+WRITE INTERPRETATION AFTER RUNNING MODEL.
+
+
+## 5.4 Model 4 — Persistence and Migration
+
+### Reason for model
+
+This model tests whether migration provides additional explanatory
+information after controlling for existing momentum in house prices.
+
+```{r mixed}
+reg_mixed <- lm(
+  HPI_growth ~ HPI_growth_lag1 + Migration_lag1,
+  data = model_q
+)
+
+summary(reg_mixed)
+confint(reg_mixed)
+```
+
+### Interpretation
+
+Compare the migration coefficient with the simple migration model.
+This determines whether its relationship with HPI growth remains after
+controlling for previous house price growth.
+
+
+## 5.5 Model 5 — Demand and Supply
+
+```{r demand-supply}
+reg_demand_supply <- lm(
+  HPI_growth ~ Migration_lag1 + Dwellings_lag1,
+  data = model_q
+)
+
+summary(reg_demand_supply)
+confint(reg_demand_supply)
+```
+
+### Interpretation
+
+This model jointly examines a potential demand indicator (migration)
+and a potential future supply indicator (dwelling consents).
+
+
+## 5.6 Model 6 — Multivariable Model
+
+### Reason for model
+
+The multivariable model tests whether migration, dwelling consents and
+construction-cost growth provide additional explanatory information
+after accounting for previous HPI growth.
+
+```{r multivariable}
+reg_multi <- lm(
+  HPI_growth ~ HPI_growth_lag1 +
+    Migration_lag1 +
+    Dwellings_lag1 +
+    Cost_growth,
+  data = model_q
+)
+
+summary(reg_multi)
+confint(reg_multi)
+```
+
+### Interpretation
+
+In the previously estimated model, lagged HPI growth remained
+statistically significant (coefficient approximately 0.608,
+p = 0.0117).
+
+Lagged migration, dwelling consents and construction-cost growth were
+not individually statistically significant at the 5% level.
+
+The multivariable model had R-squared of approximately 0.408 but an
+adjusted R-squared of approximately 0.226. This suggests that adding
+these variables produced relatively little improvement over the simpler
+persistence model in this small sample.
+
+These results do not establish that migration, housing supply or
+construction costs have no effect on the New Zealand housing market.
+They indicate only that these variables did not provide statistically
+significant additional explanatory power in this particular quarterly
+sample and model specification.
+
+
+# 6. Model Diagnostics
+
+```{r diagnostics, fig.width=10, fig.height=8}
+par(mfrow = c(2,2))
+plot(reg_simple)
+par(mfrow = c(1,1))
+```
+
+```{r autocorrelation}
+acf(residuals(reg_simple))
+
+library(lmtest)
+dwtest(reg_simple, alternative = "greater")
+```
+
+### Interpretation
+
+The diagnostic plots indicate several potentially influential
+observations and some evidence that residual variance may increase at
+higher fitted values.
+
+Most residual autocorrelations remain within the approximate ACF
+confidence bounds.
+
+The Durbin-Watson test produced DW = 1.359 and p = 0.056 for the
+one-sided test for positive autocorrelation. Therefore, positive
+residual autocorrelation was not statistically significant at the
+conventional 5% level, although the result is close to that threshold.
+
+
+# 7. Model Comparison
+
+```{r model-comparison}
+AIC(reg_simple, reg_multi)
+```
+
+The simpler persistence model should be compared with more complicated
+models using fit statistics, adjusted R-squared and model diagnostics.
+
+Because the sample is small, adding predictors also reduces the
+available degrees of freedom. Model complexity therefore needs to be
+justified by meaningful improvements in explanatory performance.
+
+
+# 8. Main Findings
+
+The analysis provides evidence that quarterly New Zealand house price
+growth exhibited short-run persistence over 2021–2025.
+
+Lagged HPI growth was the clearest predictor identified in the
+regression analysis. Adding lagged migration, dwelling consents and
+construction-cost growth did not substantially improve the explanatory
+performance of the model in the specifications examined.
+
+These findings should be interpreted cautiously because the dataset
+contains only approximately 20 quarterly observations. The analysis
+identifies statistical associations rather than causal effects.
+
+
+# 9. Limitations
+
+The analysis covers only 2021–2025, which is an unusually short and
+economically volatile period.
+
+The small sample limits statistical power and the number of predictors
+that can reasonably be included in multivariable regressions.
+
+Dwelling consents measure approvals rather than completed housing supply.
+
+Migration, construction activity and house prices may respond jointly
+to broader economic conditions, creating potential endogeneity.
+
+Therefore, regression coefficients should be interpreted as conditional
+associations rather than causal estimates.
