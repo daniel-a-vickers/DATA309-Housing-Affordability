@@ -78,12 +78,12 @@ ecan_lookup <- ecan %>%
 
 # missingness table
 
-# missing_table <- ecan_lookup %>%
-#   filter(is.na(lookup_class)) %>%
-#   count(TLA, LandUse, sort = TRUE) %>%
-#   mutate(TLA_name = recode(TLA, !!!tla_names))
-# 
-# write_csv(missing_table, "outputs_rq3/table_A_missingness.csv")
+missing_table <- ecan_lookup %>%
+  filter(is.na(lookup_class)) %>%
+  count(TLA, LandUse, sort = TRUE) %>%
+  mutate(TLA_name = recode(TLA, !!!tla_names))
+
+write_csv(missing_table, "outputs_rq3/table_A_missingness.csv")
 
 
 # Method B, guess urban or rural from site size and category code
@@ -178,22 +178,25 @@ class_counts <- ecan_classified %>% count(final_class, sort = TRUE) %>%
 
 # A vs B agreement table
 
-# agreement_table <- ecan_classified %>%
-#   filter(!is.na(lookup_class), proxy_class %in% c("Urban", "Rural")) %>%
-#   count(lookup_class, proxy_class) %>%
-#   group_by(lookup_class) %>% mutate(percent = round(100 * n / sum(n), 1)) %>% ungroup()
-# 
-# write_csv(agreement_table, "outputs_rq3/table_A_vs_B_agreement.csv")
+agreement_table <- ecan_classified %>%
+  filter(!is.na(lookup_class), proxy_class %in% c("Urban", "Rural")) %>%
+  count(lookup_class, proxy_class) %>%
+  group_by(lookup_class) %>% 
+  mutate(percent = round(100 * n / sum(n), 1)) %>% 
+  ungroup()
+
+write_csv(agreement_table, "outputs_rq3/table_A_vs_B_agreement.csv")
+# Waitaki makes up alot of missingness because not all of it is considered Canterbury
 
 
 # save classified ECAN
 
-# ecan_classified %>%
-#   select(OBJECTID, TLA, LocalCouncil, StreetAddress, LocalityName, Category,
-#          LandUse, CapitalValue, LandValue, ImprovementsValue, site_ha,
-#          lookup_area, lookup_code, lookup_class, proxy_class,
-#          check_class, final_class, class_source) %>%
-#   write_csv("outputs_rq3/ecan_classified.csv")
+ecan_classified %>%
+  select(OBJECTID, TLA, LocalCouncil, StreetAddress, LocalityName, Category,
+         LandUse, CapitalValue, LandValue, ImprovementsValue, site_ha,
+         lookup_area, lookup_code, lookup_class, proxy_class,
+         check_class, final_class, class_source) %>%
+  write_csv("outputs_rq3/ecan_classified.csv")
 
 
 # Valuation roll, Canterbury TAs only
@@ -315,14 +318,14 @@ test_land_share <- wilcox.test(land_share ~ final_class,
 test_category <- chisq.test(table(urban_rural_only$final_class,
                                   str_sub(urban_rural_only$Category, 1, 2)))
 
-sink("outputs_rq3/tests.txt")
-
-cat("Capital value (Wilcoxon): W =", round(test_value$statistic), " p =", format.pval(test_value$p.value), "\n")
-cat("Land share (Wilcoxon): W =", round(test_land_share$statistic), " p =", format.pval(test_land_share$p.value), "\n")
-cat("Category prefix (Chi-sq): X2 =", round(test_category$statistic, 1), " p =", format.pval(test_category$p.value), "\n")
-
-sink()
-
+# sink("outputs_rq3/tests.txt")
+# 
+# cat("Capital value (Wilcoxon): W =", round(test_value$statistic), " p =", format.pval(test_value$p.value), "\n")
+# cat("Land share (Wilcoxon): W =", round(test_land_share$statistic), " p =", format.pval(test_land_share$p.value), "\n")
+# cat("Category prefix (Chi-sq): X2 =", round(test_category$statistic, 1), " p =", format.pval(test_category$p.value), "\n")
+# 
+# sink()
+# 
 
 # interaction check, does the urban premium change by district
 # log(CV) on class * TLA, the interaction is the RQ3 answer in one model
@@ -336,8 +339,18 @@ model_data <- ecan_classified %>%
 
 value_model <- lm(log_cv ~ final_class * TLA, data = model_data)
 
-capture.output(summary(value_model), file = "outputs_rq3/model_urban_x_tla.txt")
+capture.output(summary(value_model), file = "outputs_rq3/Summary_rq3_model.txt")
 
+
+# Plots
+
+
+class_colours <- c(
+  "Urban"      = "#63ACE0",
+  "Rural"      = "#6DE063",
+  "Peri-urban" = "#E09763",
+  "Uncertain"  = "#D663E0"
+)
 
 # final split bar
 
@@ -345,6 +358,7 @@ ggplot(as.data.frame(class_counts),
        aes(x = reorder(final_class, n), y = n, fill = final_class)) +
   geom_col(width = 0.8, show.legend = FALSE) +
   coord_flip() +
+  scale_fill_manual(values = class_colours) +
   geom_text(aes(label = paste0(format(n, big.mark = ","), " (", percent, "%)")),
             hjust = -0.12, size = 3.5) +
   scale_y_continuous(
@@ -378,18 +392,22 @@ rural_median <- value_plot_data %>%
 
 ggplot(
   value_plot_data,
-  aes(x = final_class, y = CapitalValue, fill = final_class)
-) +
+  aes(
+    x = factor(final_class, levels = c("Urban", "Rural", "Peri-urban", "Uncertain")),
+    y = CapitalValue,
+    fill = factor(final_class, levels = c("Urban", "Rural", "Peri-urban", "Uncertain"))
+  )) +
   geom_violin(
     trim = FALSE,
-    alpha = 0.7,
+    alpha = 0.6,
     colour = "black"
   ) +
   geom_boxplot(
     width = 0.12,
-    outlier.size = 0.4,
+    outlier.size = 0.1,
     alpha = 0.8
   ) +
+  scale_fill_manual(values = class_colours) +
   geom_hline(
     yintercept = urban_median,
     colour = "lightgrey",
@@ -451,6 +469,7 @@ share_plot_data <- ecan_classified %>% filter(!is.na(land_share), land_share >= 
 
 ggplot(share_plot_data, aes(x = land_share, fill = final_class)) +
   geom_density(alpha = 0.35) +
+  scale_fill_manual(values = class_colours)
   labs(
     title = "Land share of capital value",
     x = "Land value / Capital value",
@@ -473,6 +492,7 @@ tla_plot_data <- ecan_classified %>% filter(CapitalValue > 1000,
 ggplot(tla_plot_data, aes(x = reorder(tla_label, median_value), y = median_value, fill = final_class)) +
   geom_col(position = "dodge") +
   coord_flip() +
+  scale_fill_manual(values = class_colours) +
   scale_y_continuous(labels = scales::dollar_format(prefix = "$")) +
   labs(
     title = "Median capital value, urban vs rural in each TLA",
