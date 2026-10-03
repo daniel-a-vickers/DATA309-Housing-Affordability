@@ -65,7 +65,7 @@ ecan <- read_csv("Canterbury_Properties.zip",
 tla_names <- c("054" = "Kaikoura", "058" = "Hurunui", "059" = "Waimakariri",
                "060" = "Christchurch City", "062" = "Selwyn", "063" = "Ashburton",
                "064" = "Timaru", "065" = "Mackenzie", "066" = "Waimate",
-               "068" = "Waitaki (part)")
+               "068" = "Waitaki (part)") # Considered Both Otago and Canterbury
 
 
 # Method A, join locality to the UR2025 list
@@ -197,9 +197,6 @@ class_counts <- ecan_classified %>% count(final_class, sort = TRUE) %>%
 
 
 # Valuation roll, Canterbury TAs only
-# The CSV is a 6 district extract, not national. Checked with street names:
-# Only 60/62 are Canterbury so filter to those. Old 03_00 mapping
-
 
 valuation <- read_csv("nz-properties-national-district-valuation-roll.csv",
                       show_col_types = FALSE, lazy = FALSE) %>%
@@ -220,7 +217,6 @@ valuation <- read_csv("nz-properties-national-district-valuation-roll.csv",
                            "62" = "Selwyn"))
 
 
-# same proxy as ECAN with the valuation roll column names
 # (RF = flats so Urban, LV/RB/LI = lifestyle so Rural, RV/OP/blank = uncertain,
 #  RD by site size: under 0.50ha Urban, over 1.8ha Rural, else uncertain)
 
@@ -231,11 +227,11 @@ valuation <- valuation %>%
       str_detect(category_clean, "^RF") ~ "Urban",
       str_detect(category_clean, "^(LV|RB)") | str_detect(category_clean, "^LI") ~ "Rural",
       category_clean %in% c("RV", "OP", "") ~ "Uncertain",
-      str_detect(category_clean, "^RD") & !is.na(land_area) & land_area < 0.40 ~ "Urban",
-      str_detect(category_clean, "^RD") & !is.na(land_area) & land_area >= 2.0 ~ "Rural",
+      str_detect(category_clean, "^RD") & !is.na(land_area) & land_area < 0.50 ~ "Urban",
+      str_detect(category_clean, "^RD") & !is.na(land_area) & land_area >= 1.8 ~ "Rural",
       str_detect(category_clean, "^RD") ~ "Uncertain",
       !is.na(land_area) & land_area < 0.10 ~ "Urban",
-      !is.na(land_area) & land_area >= 0.40 ~ "Rural",
+      !is.na(land_area) & land_area >= 0.50 ~ "Rural",
       TRUE ~ "Uncertain"
     ),
     
@@ -265,7 +261,7 @@ summarize_by_class <- function(data, column) {
 }
 
 
-# capital value (ECAN, drop the $0 and blank ones)
+# capital value (ECAN, remove $0 and blanks)
 
 value_summary <- summarize_by_class(ecan_classified %>% filter(CapitalValue > 1000), "CapitalValue")
 
@@ -306,7 +302,7 @@ for (column in c("capital_value", "land_value", "building_total_floor_area",
 }
 
 
-# tests, Urban vs Rural only (peri-urban and uncertain left out)
+# tests, Urban vs Rural
 
 urban_rural_only <- ecan_classified %>% filter(final_class %in% c("Urban", "Rural"),
                                                CapitalValue > 1000)
@@ -367,18 +363,83 @@ ggsave("outputs_rq3/plot_final_split.png", width = 8, height = 4, dpi = 150)
 
 # capital value distributions
 
-value_plot_data <- ecan_classified %>% filter(CapitalValue > 1000, CapitalValue < 5e6)
+value_plot_data <- ecan_classified %>%
+  filter(CapitalValue > 1000, CapitalValue < 5e6)
 
-ggplot(value_plot_data, aes(x = final_class, y = CapitalValue, fill = final_class)) +
-  geom_boxplot(outlier.size = 0.4) +
-  scale_y_continuous(labels = scales::dollar_format(prefix = "$")) +
+urban_median <- value_plot_data %>%
+  filter(final_class == "Urban") %>%
+  summarise(median_capital_value = median(CapitalValue, na.rm = TRUE)) %>%
+  pull(median_capital_value)
+
+rural_median <- value_plot_data %>%
+  filter(final_class == "Rural") %>%
+  summarise(median_capital_value = median(CapitalValue, na.rm = TRUE)) %>%
+  pull(median_capital_value)
+
+ggplot(
+  value_plot_data,
+  aes(x = final_class, y = CapitalValue, fill = final_class)
+) +
+  geom_violin(
+    trim = FALSE,
+    alpha = 0.7,
+    colour = "black"
+  ) +
+  geom_boxplot(
+    width = 0.12,
+    outlier.size = 0.4,
+    alpha = 0.8
+  ) +
+  geom_hline(
+    yintercept = urban_median,
+    colour = "lightgrey",
+    linetype = "dashed",
+    linewidth = 0.3
+  ) +
+  geom_hline(
+    yintercept = rural_median,
+    colour = "lightgrey",
+    linetype = "dashed",
+    linewidth = 0.3
+  ) +
+  annotate(
+    "text",
+    x = -Inf,
+    y = urban_median,
+    label = paste0(scales::dollar(urban_median)),
+    hjust = 1.05,
+    colour = "grey35",
+    size = 3
+  ) +
+  annotate(
+    "text",
+    x = -Inf,
+    y = rural_median,
+    label = paste0(scales::dollar(rural_median)),
+    hjust = 1.05,
+    colour = "grey35",
+    size = 3
+  ) +
+  scale_y_continuous(
+    labels = scales::dollar_format(prefix = "$")
+  ) +
+  coord_cartesian(clip = "off") +
   labs(
     title = "Capital value by urban/rural class",
     x = "Class",
     y = "Capital value",
     fill = "Class"
   ) +
-  theme_bw()
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    plot.margin = margin(
+      t = 5.5,
+      r = 5.5,
+      b = 5.5,
+      l = 5.5
+    )
+  )
 
 ggsave("outputs_rq3/plot_capital_value.png", width = 8, height = 5, dpi = 150)
 
@@ -412,6 +473,7 @@ tla_plot_data <- ecan_classified %>% filter(CapitalValue > 1000,
 ggplot(tla_plot_data, aes(x = reorder(tla_label, median_value), y = median_value, fill = final_class)) +
   geom_col(position = "dodge") +
   coord_flip() +
+  scale_y_continuous(labels = scales::dollar_format(prefix = "$")) +
   labs(
     title = "Median capital value, urban vs rural in each TLA",
     x = "TLA",
