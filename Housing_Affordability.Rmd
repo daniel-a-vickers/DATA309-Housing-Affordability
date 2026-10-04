@@ -1,0 +1,434 @@
+## Load and select
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(zoo)
+
+raw <- read_excel("Time_series_data.xlsx", sheet = "Combined")
+names(raw) <- str_squish(names(raw))   # strips trailing/double spaces
+
+df <- raw %>%
+  transmute(
+    date          = as.Date(Date),
+    nz_price      = `NZ Median sale price`,
+    cant_price    = `Canterbury Median sale price`,
+    nz_rent       = `Median Rent`,
+    cant_rent     = `Canterbury Median Rent`,
+    rate_1y       = `1 Year Mortgage Rate`,
+    rate_2y       = `2 Year Mortgage Rate`,
+    ocr           = OCR,
+    income_nz     = `Mean Income`,              # per person
+    income_cant   = `Mean Income Canterbury`,   # per person
+    unemp         = `Unemployment Rate`,
+    cpi           = CPI,
+    pop_nz        = Population,
+    pop_cant      = `Canterbury Population`,
+    lvr_total     = `LVR Total New Commitments (NZDm)`,
+    lvr_above80   = `LVR Above 80% Commitments (NZDm)`,
+    consents_nz   = `Dwelling Unit Consents`,
+    consents_cant = `Canterbury Dwelling Unit Consents`,
+    vol_nz        = `Volume Sold`,
+    vol_cant      = `Volume Sold Canterbury`,
+    net_mig_nz    = `Net migration`,
+    bright_line   = `Bright Line Test Period`
+  )
+
+# monthly grid, no gaps
+stopifnot(all(as.numeric(diff(df$date)) %in% 28:31))
+```
+
+## Interpolate
+
+```{r}
+# linear between observed points; na.rm = FALSE means no extrapolation
+interp_vars <- c("income_nz", "income_cant", "unemp", "cpi", "pop_nz", "pop_cant")
+
+df <- df %>%
+  mutate(across(all_of(interp_vars), ~ na.approx(.x, na.rm = FALSE)))
+```
+
+## Derived variables
+
+```{r}
+# monthly P&I payment on an 80% loan, as % of annual income
+pmt_share <- function(price, rate_pct, income, ltv = 0.8, years = 30) {
+  r <- rate_pct / 100 / 12
+  n <- years * 12
+  payment <- price * ltv * r / (1 - (1 + r)^(-n))
+  payment * 12 / income * 100
+}
+
+df <- df %>%
+  mutate(
+    # affordability outcomes (2-year main, 1-year sensitivity)
+    pti_nz       = nz_price / income_nz,
+    pti_cant     = cant_price / income_cant,
+    serv_nz_2y   = pmt_share(nz_price,   rate_2y, income_nz),
+    serv_cant_2y = pmt_share(cant_price, rate_2y, income_cant),
+    serv_nz_1y   = pmt_share(nz_price,   rate_1y, income_nz),
+    serv_cant_1y = pmt_share(cant_price, rate_1y, income_cant),
+    rti_nz       = nz_rent   * 52 / income_nz   * 100,
+    rti_cant     = cant_rent * 52 / income_cant * 100,
+
+    # regressors
+    lvr_share       = lvr_above80 / lvr_total * 100,
+    pop_growth_nz   = 100 * (pop_nz   / dplyr::lag(pop_nz, 12)   - 1),
+    pop_growth_cant = 100 * (pop_cant / dplyr::lag(pop_cant, 12) - 1),
+
+    consents_12m_nz       = rollsumr(consents_nz,   12, fill = NA),
+    consents_12m_cant     = rollsumr(consents_cant, 12, fill = NA),
+    consents_per1000_nz   = consents_12m_nz   / pop_nz   * 1000,
+    consents_per1000_cant = consents_12m_cant / pop_cant * 1000,
+
+    vol_12m_nz   = rollsumr(vol_nz,   12, fill = NA),
+    vol_12m_cant = rollsumr(vol_cant, 12, fill = NA),
+    vol_yoy_nz   = 100 * (vol_12m_nz   / dplyr::lag(vol_12m_nz, 12)   - 1),
+    vol_yoy_cant = 100 * (vol_12m_cant / dplyr::lag(vol_12m_cant, 12) - 1)
+  )
+```
+
+## Sanity checks
+
+```{r}
+# coverage of every variable
+df %>%
+  pivot_longer(-date) %>%
+  filter(!is.na(value)) %>%
+  group_by(name) %>%
+  summarise(n = n(), first = min(date), last = max(date), .groups = "drop") %>%
+  print(n = Inf)
+
+# constructed measures vs the official annual points (levels differ: per person vs household)
+official <- raw %>%
+  transmute(date = as.Date(Date),
+            off_pti_nz   = `New Zealand House value to income`,
+            off_pti_cant = `Canterbury Region House value to income`,
+            off_ser_nz   = `New Zealand Mortgage payment proportion of income`,
+            off_ser_cant = `Canterbury Region Mortgage payment proportion of income`) %>%
+  filter(!is.na(off_pti_nz))
+
+chk <- official %>%
+  inner_join(df %>% select(date, pti_nz, pti_cant, serv_nz_2y, serv_cant_2y,
+                           serv_nz_1y, serv_cant_1y), by = "date") %>%
+  drop_na()
+
+tibble(
+  measure     = c("PTI", "Serv 2y", "Serv 1y"),
+  cor_nz      = c(cor(chk$off_pti_nz, chk$pti_nz),
+                  cor(chk$off_ser_nz, chk$serv_nz_2y),
+                  cor(chk$off_ser_nz, chk$serv_nz_1y)),
+  cor_cant    = c(cor(chk$off_pti_cant, chk$pti_cant),
+                  cor(chk$off_ser_cant, chk$serv_cant_2y),
+                  cor(chk$off_ser_cant, chk$serv_cant_1y))
+) %>% mutate(across(where(is.numeric), ~ round(.x, 2)))
+```
+
+```{r}
+# outcomes, Canterbury vs NZ
+covid <- as.Date("2020-03-01")
+
+outcomes <- df %>%
+  select(date, pti_nz, pti_cant, serv_nz = serv_nz_2y, serv_cant = serv_cant_2y,
+         rti_nz, rti_cant) %>%
+  pivot_longer(-date, names_to = c("measure", "region"),
+               names_pattern = "(.*)_(nz|cant)") %>%
+  filter(!is.na(value)) %>%
+  mutate(region  = recode(region, nz = "NZ", cant = "Canterbury"),
+         measure = factor(measure, levels = c("pti", "serv", "rti"),
+                          labels = c("Price-to-income (x)",
+                                     "Mortgage payment (% of income, 2-yr rate)",
+                                     "Rent-to-income (%)")))
+
+ggplot(outcomes, aes(date, value, colour = region)) +
+  geom_line() +
+  geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40") +
+  facet_wrap(~ measure, scales = "free_y", ncol = 1) +
+  labs(x = NULL, y = NULL, colour = NULL,
+       title = "Affordability: Canterbury vs NZ (per-person income)",
+       caption = "Dashed line: March 2020. Income interpolated linearly from annual data.") +
+  theme_minimal() + theme(legend.position = "top")
+```
+
+``` {r checks}
+# drivers
+by_region <- df %>%
+  select(date, consents_per1000_nz, consents_per1000_cant,
+         pop_growth_nz, pop_growth_cant, vol_yoy_nz, vol_yoy_cant) %>%
+  pivot_longer(-date, names_to = c("var", "region"),
+               names_pattern = "(.*)_(nz|cant)") %>%
+  mutate(region = recode(region, nz = "NZ", cant = "Canterbury"),
+         var = factor(var, levels = c("consents_per1000", "pop_growth", "vol_yoy"),
+                      labels = c("Dwelling consents, 12m per 1,000 people",
+                                 "Population growth, % y/y",
+                                 "Sales volume, % y/y (12m sum)")))
+
+ggplot(by_region, aes(date, value, colour = region)) +
+  geom_line(na.rm = TRUE) +
+  geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40") +
+  facet_wrap(~ var, scales = "free_y", ncol = 1) +
+  labs(x = NULL, y = NULL, colour = NULL, title = "Regional drivers") +
+  theme_minimal() + theme(legend.position = "top")
+
+national <- df %>%
+  select(date, `2-yr mortgage rate (%)` = rate_2y, `OCR (%)` = ocr,
+         `LVR >80% share of new lending (%)` = lvr_share) %>%
+  pivot_longer(-date) %>%
+  mutate(panel = if_else(name == "LVR >80% share of new lending (%)",
+                         "LVR >80% share of new lending (%)", "Interest rates (%)"))
+
+ggplot(national, aes(date, value, colour = name)) +
+  geom_line(na.rm = TRUE) +
+  geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40") +
+  facet_wrap(~ panel, scales = "free_y", ncol = 1) +
+  labs(x = NULL, y = NULL, colour = NULL, title = "National drivers") +
+  theme_minimal() + theme(legend.position = "top")
+```
+
+```{r chunks}
+# pre/post COVID means
+df %>%
+  filter(!is.na(pti_nz)) %>%
+  mutate(period = if_else(date < covid, "Pre-COVID (to Feb 2020)", "Mar 2020 onward")) %>%
+  group_by(period) %>%
+  summarise(across(c(pti_nz, pti_cant, serv_nz_2y, serv_cant_2y, rti_nz, rti_cant),
+                   ~ round(mean(.x, na.rm = TRUE), 1)), .groups = "drop")
+```
+
+```{r}
+# decomposition of the change in payment burden
+k_fun <- function(rate_pct, years = 30) {          # monthly payment per $1 borrowed
+  r <- rate_pct / 100 / 12
+  n <- years * 12
+  r / (1 - (1 + r)^(-n))
+}
+
+windows <- tibble(
+  window = c("Mar 2015 to Mar 2020", "Mar 2020 to Mar 2022", "Mar 2022 to Mar 2025"),
+  from   = as.Date(c("2015-03-01", "2020-03-01", "2022-03-01")),
+  to     = as.Date(c("2020-03-01", "2022-03-01", "2025-03-01"))
+)
+anchors <- unique(c(windows$from, windows$to))
+
+dl <- df %>%
+  filter(date %in% anchors) %>%
+  transmute(date,
+            NZ_price          = log(nz_price),
+            NZ_rate           = log(k_fun(rate_2y)),
+            NZ_income         = -log(income_nz),        # higher income lowers the burden
+            Canterbury_price  = log(cant_price),
+            Canterbury_rate   = log(k_fun(rate_2y)),
+            Canterbury_income = -log(income_cant)) %>%
+  pivot_longer(-date, names_to = c("region", "component"), names_sep = "_")
+
+start <- dl %>% rename(from = date, v0 = value)
+end   <- dl %>% rename(to   = date, v1 = value)
+
+contrib <- windows %>%
+  inner_join(start, by = "from") %>%
+  inner_join(end, by = c("to", "region", "component")) %>%
+  mutate(contribution = 100 * (v1 - v0),
+         window    = factor(window, levels = windows$window),
+         component = factor(component, levels = c("price", "rate", "income")))
+
+totals <- contrib %>%
+  group_by(window, region) %>%
+  summarise(total = sum(contribution), .groups = "drop")
+
+# check: contributions must sum to the direct change in log burden
+direct <- windows %>%
+  inner_join(df %>% select(from = date, nz0 = serv_nz_2y, c0 = serv_cant_2y), by = "from") %>%
+  inner_join(df %>% select(to = date, nz1 = serv_nz_2y, c1 = serv_cant_2y), by = "to") %>%
+  transmute(window = factor(window, levels = windows$window),
+            NZ = 100 * log(nz1 / nz0), Canterbury = 100 * log(c1 / c0)) %>%
+  pivot_longer(-window, names_to = "region", values_to = "direct")
+chk <- left_join(totals, direct, by = c("window", "region"))
+stopifnot(all(abs(chk$total - chk$direct) < 1e-8))
+
+contrib %>%
+  select(window, region, component, contribution) %>%
+  pivot_wider(names_from = component, values_from = contribution) %>%
+  left_join(totals, by = c("window", "region")) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 1))) %>%
+  arrange(region, window)
+
+ggplot(contrib, aes(window, contribution, fill = component)) +
+  geom_col(width = 0.65) +
+  geom_point(data = totals, aes(y = total, fill = NULL), shape = 18, size = 3,
+             show.legend = FALSE) +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  facet_wrap(~ region) +
+  scale_fill_manual(values = c(price = "#1b9e77", rate = "#d95f02", income = "#7570b3"),
+                    labels = c("House price", "Mortgage rate", "Income")) +
+  labs(x = NULL, y = "Contribution to change in payment burden (log points x100)",
+       fill = NULL,
+       caption = "Diamond = total change. 80% loan, 30-year term, 2-year rate, per-person income.") +
+  theme_minimal() + theme(legend.position = "top",
+                          axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
+```{r}
+library(sandwich)
+
+break_date <- as.Date("2020-03-01")
+
+q4 <- df %>%
+  filter(!is.na(pti_nz)) %>%            # Mar 2015 to Mar 2025
+  mutate(t = row_number() / 12,         # time in years
+         lpti_nz   = log(pti_nz),
+         lpti_cant = log(pti_cant),
+         gap       = lpti_cant - lpti_nz,
+         period = case_when(
+           date < break_date            ~ "pre",
+           date < as.Date("2021-04-01") ~ "Apr 2020-Mar 2021",
+           date < as.Date("2022-04-01") ~ "Apr 2021-Mar 2022",
+           date < as.Date("2023-04-01") ~ "Apr 2022-Mar 2023",
+           date < as.Date("2024-04-01") ~ "Apr 2023-Mar 2024",
+           TRUE                         ~ "Apr 2024-Mar 2025"))
+
+proj_dev <- function(y, data, break_date) {
+  pre  <- data %>% filter(date <  break_date)
+  post <- data %>% filter(date >= break_date)
+
+  m0 <- lm(reformulate("t", y), data = pre)
+  V  <- NeweyWest(m0, lag = 12, prewhite = FALSE)   # HAC covariance of the trend fit
+  X  <- cbind(1, post$t)
+
+  post <- post %>%
+    mutate(actual = .data[[y]],
+           proj   = as.numeric(X %*% coef(m0)),
+           se     = sqrt(rowSums((X %*% V) * X)),     # uncertainty of the projection
+           dev    = 100 * (actual - proj),
+           lo     = 100 * (actual - proj - 1.96 * se),
+           hi     = 100 * (actual - proj + 1.96 * se),
+           row    = row_number())
+
+  by_year <- post %>%
+    group_by(period) %>%
+    summarise(deviation = mean(dev),
+              se = 100 * sqrt({xb <- colMeans(X[row, , drop = FALSE]); as.numeric(xb %*% V %*% xb)}),
+              .groups = "drop") %>%
+    mutate(lo = deviation - 1.96 * se, hi = deviation + 1.96 * se)
+
+  list(monthly = post %>% select(date, period, dev, lo, hi),
+       yearly = by_year, pre_slope = 100 * coef(m0)[["t"]])
+}
+
+outs <- c(NZ = "lpti_nz", Canterbury = "lpti_cant", `Canterbury minus NZ` = "gap")
+res  <- map(outs, ~ proj_dev(.x, q4, break_date))
+
+map_dfr(res, "yearly", .id = "series") %>%
+  mutate(across(where(is.numeric), ~ round(.x, 1))) %>%
+  arrange(series, period)
+
+round(map_dbl(res, "pre_slope"), 1)       # pre-COVID trend, % per year
+
+map_dfr(res, "monthly", .id = "series") %>%
+  mutate(series = factor(series, levels = names(outs))) %>%
+  ggplot(aes(date, dev)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), fill = "grey80") +
+  geom_line(colour = "#1b9e77") +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  facet_wrap(~ series, ncol = 1, scales = "free_y") +
+  labs(x = NULL, y = "Actual vs projected pre-COVID trend (log points x100)",
+       caption = "Log price-to-income. Band: 95% uncertainty of the projected trend (HAC). Break: Apr 2020.") +
+  theme_minimal()
+```
+
+```{r}
+break_date <- as.Date("2020-03-01")
+
+trend_plot <- function(var, region) {
+  d <- df %>% filter(!is.na(.data[[var]])) %>%
+    mutate(t = row_number() / 12, actual = .data[[var]])
+
+  fit <- lm(log(actual) ~ t, data = filter(d, date < break_date))   # pre-COVID trend only
+  d <- d %>% mutate(predicted = exp(predict(fit, newdata = d)))
+
+  d %>%
+    select(date, Actual = actual, `Pre-COVID trend` = predicted) %>%
+    pivot_longer(-date, names_to = "series", values_to = "pti") %>%
+    ggplot(aes(date, pti, colour = series, linetype = series)) +
+    annotate("rect", xmin = break_date, xmax = max(d$date),
+             ymin = -Inf, ymax = Inf, fill = "grey90", alpha = 0.6) +
+    geom_line(linewidth = 0.9) +
+    geom_vline(xintercept = break_date, colour = "grey40", linetype = "dotted") +
+    scale_colour_manual(values = c(Actual = "black", `Pre-COVID trend` = "#d95f02")) +
+    scale_linetype_manual(values = c(Actual = "solid", `Pre-COVID trend` = "dashed")) +
+    labs(x = NULL, y = "Price-to-income (years of per-person income)",
+         colour = NULL, linetype = NULL,
+         title = paste0(region, ": actual vs pre-COVID trend"),
+         caption = "Trend fitted to Mar 2015 to Mar 2020 only, then extended. Shaded: from Apr 2020.") +
+    theme_minimal() + theme(legend.position = "top")
+}
+
+trend_plot("pti_nz",   "NZ")
+trend_plot("pti_cant", "Canterbury")
+```
+
+```{r}
+## ---- chunk 12b: PTI decomposition (price vs income, exact) ----------------
+# log(PTI) = log(price) - log(income), so unlike the payment-burden
+# decomposition (which runs through the nonlinear annuity formula and needs
+# a rate term + residual), this one has exactly two components and sums to
+# the total with NO residual. Reuses `windows` / `anchors` from chunk 11.
+
+dl_pti <- df %>%
+  filter(date %in% anchors) %>%
+  transmute(date,
+            NZ_price          = log(nz_price),
+            NZ_income         = -log(income_nz),       # higher income lowers PTI
+            Canterbury_price  = log(cant_price),
+            Canterbury_income = -log(income_cant)) %>%
+  pivot_longer(-date, names_to = c("region", "component"), names_sep = "_")
+
+start_pti <- dl_pti %>% rename(from = date, v0 = value)
+end_pti   <- dl_pti %>% rename(to   = date, v1 = value)
+
+contrib_pti <- windows %>%
+  inner_join(start_pti, by = "from") %>%
+  inner_join(end_pti, by = c("to", "region", "component")) %>%
+  mutate(contribution = 100 * (v1 - v0),
+         window    = factor(window, levels = windows$window),
+         component = factor(component, levels = c("price", "income")))
+
+totals_pti <- contrib_pti %>%
+  group_by(window, region) %>%
+  summarise(total = sum(contribution), .groups = "drop")
+
+# check: contributions must sum to the direct change in log PTI
+direct_pti <- windows %>%
+  inner_join(df %>% select(from = date, nz0 = pti_nz, c0 = pti_cant), by = "from") %>%
+  inner_join(df %>% select(to = date, nz1 = pti_nz, c1 = pti_cant), by = "to") %>%
+  transmute(window = factor(window, levels = windows$window),
+            NZ = 100 * log(nz1 / nz0), Canterbury = 100 * log(c1 / c0)) %>%
+  pivot_longer(-window, names_to = "region", values_to = "direct")
+chk_pti <- left_join(totals_pti, direct_pti, by = c("window", "region"))
+stopifnot(all(abs(chk_pti$total - chk_pti$direct) < 1e-8))
+
+contrib_pti %>%
+  select(window, region, component, contribution) %>%
+  pivot_wider(names_from = component, values_from = contribution) %>%
+  left_join(totals_pti, by = c("window", "region")) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 1))) %>%
+  arrange(region, window)
+
+## ---- chunk 12c: plot ------------------------------------------------------
+ggplot(contrib_pti, aes(window, contribution, fill = component)) +
+  geom_col(width = 0.65) +
+  geom_point(data = totals_pti, aes(y = total, fill = NULL), shape = 18, size = 3,
+             show.legend = FALSE) +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  facet_wrap(~ region) +
+  scale_fill_manual(values = c(price = "#1b9e77", income = "#7570b3"),
+                    labels = c("House price", "Income")) +
+  labs(x = NULL, y = "Contribution to change in price-to-income ratio (log points x100)",
+       fill = NULL,
+       caption = "Diamond = total change in log price-to-income ratio. Per-person income.") +
+  theme_minimal() + theme(legend.position = "top",
+                          axis.text.x = element_text(angle = 20, hjust = 1))
+
+
+```
+
+
