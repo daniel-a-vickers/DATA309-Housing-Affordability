@@ -467,9 +467,9 @@ ggsave("outputs_rq3/plot_capital_value.png", width = 8, height = 5, dpi = 150)
 share_plot_data <- ecan_classified %>% filter(!is.na(land_share), land_share >= 0, land_share <= 1) %>%
   filter(final_class %in% c("Urban", "Rural", "Peri-urban"))
 
-ggplot(share_plot_data, aes(x = land_share, fill = final_class)) +
-  geom_density(alpha = 0.35) +
-  scale_fill_manual(values = class_colours)
+ggplot(share_plot_data, aes(x = land_share, colour = final_class)) +
+  geom_density(alpha = 1, linewidth = 1.2) +
+  scale_colour_manual(values = class_colours) +
   labs(
     title = "Land share of capital value",
     x = "Land value / Capital value",
