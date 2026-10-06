@@ -1,0 +1,431 @@
+locality,n,dom_tla,tla_breakdown,ur_name,iur,broad,method
+(Forestry Road),8,058,{'058': 8},,,,NEEDS_DECISION
+(Pte Road),22,058,{'058': 22},,,,NEEDS_DECISION
+Adair,34,064,{'064': 34},,,,NEEDS_DECISION
+Addington,3703,060,{'060': 3703},Christchurch,11,Urban,TLA060_ChristchurchCity
+Ahuriri Conservation Park,9,068,{'068': 9},,,,NEEDS_DECISION
+Airedale,19,068,{'068': 19},,,,NEEDS_DECISION
+Akaroa,1571,060,{'060': 1571},Akaroa,21,Rural,UR2025_exact
+Albury,190,065,"{'066': 2, '065': 187, '064': 1}",,,,NEEDS_DECISION
+Allandale,4,062,{'062': 4},,,,NEEDS_DECISION
+Alma,100,068,{'068': 100},,,,NEEDS_DECISION
+Amberley,1848,058,{'058': 1848},Amberley,14,Urban,UR2025_exact
+Amberley - Broomfield,22,058,{'058': 22},,,,NEEDS_DECISION
+Amberley - Glasnevin,9,058,{'058': 9},,,,NEEDS_DECISION
+Amberley Beach,129,058,{'058': 129},Amberley Beach,21,Rural,UR2025_exact
+Aoraki Mount Cook National Park,7,065,{'065': 7},,,,NEEDS_DECISION
+Aranui,1689,060,{'060': 1689},Christchurch,11,Urban,TLA060_ChristchurchCity
+Ardgowan,48,068,{'068': 48},,,,NEEDS_DECISION
+Arthur's Pass,54,062,{'062': 54},,,,NEEDS_DECISION
+Arthur's Pass National Park,160,062,{'062': 160},,,,NEEDS_DECISION
+Arundel,66,064,{'064': 66},Oamaru,13,Urban,UR2025_parent_urban_area
+Ashley,8,058,{'058': 8},Ashley,21,Rural,UR2025_exact
+Ashley Forest,3,058,{'058': 3},Ashley,21,Rural,UR2025_rural_settlement_variant
+Ashley Forest Village,17,058,{'058': 17},,,,NEEDS_DECISION
+Ashley/Balcairn,14,058,{'058': 14},,,,NEEDS_DECISION
+Ashwick Flat,124,065,{'065': 124},,,,NEEDS_DECISION
+Aviemore,15,068,{'068': 15},,,,NEEDS_DECISION
+Avondale,772,060,{'060': 772},Christchurch,11,Urban,TLA060_ChristchurchCity
+Avonhead,4086,060,{'060': 4086},Christchurch,11,Urban,TLA060_ChristchurchCity
+Avonside,783,060,{'060': 783},Christchurch,11,Urban,TLA060_ChristchurchCity
+Awamoa,78,068,{'068': 78},,,,NEEDS_DECISION
+Awamoko,55,068,{'068': 55},,,,NEEDS_DECISION
+Balcairn,107,058,{'058': 107},,,,NEEDS_DECISION
+Balmoral,9,058,{'058': 9},,,,NEEDS_DECISION
+Balmoral Forest,1,058,{'058': 1},,,,NEEDS_DECISION
+Balmoral Hill,109,060,{'060': 109},Christchurch,11,Urban,TLA060_ChristchurchCity
+Bankside,94,062,{'062': 94},,,,NEEDS_DECISION
+Beckenham,1099,060,{'060': 1099},Christchurch,11,Urban,TLA060_ChristchurchCity
+Belfast,4850,060,{'060': 4850},Christchurch,11,Urban,TLA060_ChristchurchCity
+Belfield,37,064,{'064': 37},,,,NEEDS_DECISION
+Ben Ohau,245,065,{'065': 245},,,,NEEDS_DECISION
+Ben Omar,2,068,{'068': 2},,,,NEEDS_DECISION
+Benmore,6,068,{'068': 6},,,,NEEDS_DECISION
+Bexley,110,060,{'060': 110},Christchurch,11,Urban,TLA060_ChristchurchCity
+Birchwood,8,068,{'068': 8},,,,NEEDS_DECISION
+Birdlings Flat,234,060,{'060': 234},Birdlings Flat,21,Rural,UR2025_exact
+Birdwood,4,062,{'062': 4},,,,NEEDS_DECISION
+Bishopdale,3910,060,{'060': 3910},Christchurch,11,Urban,TLA060_ChristchurchCity
+Black Point,12,068,{'068': 12},,,,NEEDS_DECISION
+Boyle River,22,058,{'058': 22},,,,NEEDS_DECISION
+Bridgend,43,060,{'060': 43},Christchurch,11,Urban,TLA060_ChristchurchCity
+Bromley,2310,060,{'060': 2310},Christchurch,11,Urban,TLA060_ChristchurchCity
+Brooklands,834,060,{'060': 834},Christchurch,11,Urban,TLA060_ChristchurchCity
+Broomfield,641,060,"{'058': 231, '060': 410}",Christchurch,11,Urban,TLA060_ChristchurchCity
+Bryndwr,3195,060,{'060': 3195},Christchurch,11,Urban,TLA060_ChristchurchCity
+Burkes Pass,66,065,{'065': 66},,,,NEEDS_DECISION
+Burnham,294,062,{'062': 294},,,,NEEDS_DECISION
+Burnham Camp,10,062,{'062': 10},Burnham Camp,14,Urban,UR2025_exact
+Burnside,2370,060,{'060': 2370},Christchurch,11,Urban,TLA060_ChristchurchCity
+Burwood,4258,060,{'060': 4258},Christchurch,11,Urban,TLA060_ChristchurchCity
+Canterbury Bight,2,062,{'062': 2},,,,NEEDS_DECISION
+Caroline Bay,1,064,{'064': 1},,,,NEEDS_DECISION
+Casebrook,1253,060,{'060': 1253},Christchurch,11,Urban,TLA060_ChristchurchCity
+Cashmere,2786,060,{'060': 2786},Christchurch,11,Urban,TLA060_ChristchurchCity
+Castle Hill,364,062,{'062': 364},Castle Hill,21,Rural,UR2025_exact
+Cattle Creek,15,066,{'066': 15},,,,NEEDS_DECISION
+Cave,136,064,"{'065': 9, '064': 127}",Cave,21,Rural,UR2025_exact
+Central City,8054,060,{'060': 8054},Christchurch,11,Urban,TLA060_ChristchurchCity
+Chaneys,32,060,{'060': 32},Christchurch,11,Urban,TLA060_ChristchurchCity
+Charing Cross,179,062,{'062': 179},,,,NEEDS_DECISION
+Cheviot,533,058,{'058': 533},Cheviot,21,Rural,UR2025_exact
+Cheviot - Leamington,12,058,{'058': 12},,,,NEEDS_DECISION
+Clandeboye,75,064,{'064': 75},,,,NEEDS_DECISION
+Claremont,342,064,{'064': 342},Timaru,13,Urban,UR2025_parent_urban_area
+Clifton,641,060,{'060': 641},Christchurch,11,Urban,TLA060_ChristchurchCity
+Coal Stream,63,065,"{'065': 61, '064': 2}",,,,NEEDS_DECISION
+Coalgate,291,062,{'062': 291},Coalgate,21,Rural,UR2025_exact
+Conway - Kaikoura,10,058,{'058': 10},,,,NEEDS_DECISION
+Conway Flat,93,058,{'058': 93},,,,NEEDS_DECISION
+Cormacks,28,068,{'068': 28},,,,NEEDS_DECISION
+Corriedale,12,068,{'068': 12},,,,NEEDS_DECISION
+Cracroft,598,060,{'060': 598},Christchurch,11,Urban,TLA060_ChristchurchCity
+Craigieburn Forest Park,16,062,{'062': 16},,,,NEEDS_DECISION
+Culverden,412,058,{'058': 412},Culverden,21,Rural,UR2025_exact
+Dallington,1229,060,{'060': 1229},Christchurch,11,Urban,TLA060_ChristchurchCity
+Danseys Pass,6,068,{'068': 6},,,,NEEDS_DECISION
+Darfield,2180,062,{'062': 2180},Darfield,14,Urban,UR2025_exact
+Deborah,102,068,{'068': 102},,,,NEEDS_DECISION
+Diamond Harbour,1391,060,{'060': 1391},Diamond Harbour,14,Urban,UR2025_exact
+Dobson Valley,2,065,{'065': 2},,,,NEEDS_DECISION
+Domett,45,058,{'058': 45},,,,NEEDS_DECISION
+Doyleston,187,062,{'062': 187},Doyleston,21,Rural,UR2025_exact
+Dunback,51,068,{'068': 51},,,,NEEDS_DECISION
+Dunsandel,448,062,{'062': 448},Dunsandel,21,Rural,UR2025_exact
+Duntroon,132,068,{'068': 132},Duntroon,21,Rural,UR2025_exact
+Duvauchelle,475,060,{'060': 475},Duvauchelle,21,Rural,UR2025_exact
+Earthquakes,12,068,{'068': 12},,,,NEEDS_DECISION
+Elderslie,20,068,{'068': 20},,,,NEEDS_DECISION
+Elephant Hill,41,066,{'066': 41},,,,NEEDS_DECISION
+Enfield,91,068,{'068': 91},,,,NEEDS_DECISION
+Ethelton (Cheviot),1,058,{'058': 1},,,,NEEDS_DECISION
+Ethelton - Letterbox Road,9,058,{'058': 9},,,,NEEDS_DECISION
+Fairlie,712,065,"{'065': 701, '064': 11}",Fairlie,21,Rural,UR2025_exact
+Fairview,188,064,{'064': 188},Timaru,13,Urban,UR2025_parent_urban_area
+Fendalton,2812,060,{'060': 2812},Christchurch,11,Urban,TLA060_ChristchurchCity
+Ferniehurst,5,058,{'058': 5},,,,NEEDS_DECISION
+Ferrymead,293,060,{'060': 293},Christchurch,11,Urban,TLA060_ChristchurchCity
+Five Forks,41,068,{'068': 41},,,,NEEDS_DECISION
+Fuchsia Creek,28,068,{'068': 28},,,,NEEDS_DECISION
+Gammack,2,065,{'065': 2},,,,NEEDS_DECISION
+Georgetown,61,068,{'068': 61},,,,NEEDS_DECISION
+Geraldine,1894,064,{'064': 1894},Geraldine,14,Urban,UR2025_exact
+Geraldine Downs,222,064,{'064': 222},Timaru,13,Urban,UR2025_parent_urban_area
+Geraldine Flat,59,064,{'064': 59},,,,NEEDS_DECISION
+Glasnevin,89,060,"{'058': 11, '060': 78}",Christchurch,11,Urban,TLA060_ChristchurchCity
+Glenavy,211,066,"{'066': 210, '068': 1}",Glenavy,21,Rural,UR2025_exact
+Glenbrook,9,068,{'068': 9},,,,NEEDS_DECISION
+Gleniti,1445,064,{'064': 1445},Timaru,13,Urban,UR2025_parent_urban_area
+Glenmark,26,058,{'058': 26},,,,NEEDS_DECISION
+Glenpark,26,068,{'068': 26},,,,NEEDS_DECISION
+Glentanner,1,065,{'065': 1},,,,NEEDS_DECISION
+Glentunnel,310,062,{'062': 310},Glentunnel,21,Rural,UR2025_exact
+Glenwood,857,064,{'064': 857},Timaru,13,Urban,UR2025_parent_urban_area
+Gore Bay,111,058,{'058': 111},Gore Bay,21,Rural,UR2025_exact
+Governors Bay,489,060,{'060': 489},Governors Bay,21,Rural,UR2025_exact
+Green Valley,14,068,{'068': 14},,,,NEEDS_DECISION
+Greendale,125,062,{'062': 125},,,,NEEDS_DECISION
+Greta Valley,158,058,{'058': 158},,,,NEEDS_DECISION
+Greta Valley-Motunau,23,058,{'058': 23},,,,NEEDS_DECISION
+Hadlow,102,064,{'064': 102},,,,NEEDS_DECISION
+Hakataramea,72,066,{'066': 72},,,,NEEDS_DECISION
+Hakataramea Valley,62,066,"{'066': 58, '065': 4}",,,,NEEDS_DECISION
+Halswell,7418,060,"{'062': 100, '060': 7318}",Christchurch,11,Urban,TLA060_ChristchurchCity
+Hampden,551,068,{'068': 551},Oamaru,13,Urban,UR2025_parent_urban_area
+Hanmer Forest,1,058,{'058': 1},,,,NEEDS_DECISION
+Hanmer Forest Park,3,058,{'058': 3},,,,NEEDS_DECISION
+Hanmer Springs,1839,058,{'058': 1839},Hanmer Springs,14,Urban,UR2025_exact
+Harewood,1347,060,{'060': 1347},Christchurch,11,Urban,TLA060_ChristchurchCity
+Hawarden,483,058,{'058': 483},Hawarden,21,Rural,UR2025_exact
+Hawkswood,4,058,{'058': 4},,,,NEEDS_DECISION
+Hazelburn,75,064,"{'065': 5, '064': 70}",,,,NEEDS_DECISION
+Heathcote,1172,060,{'060': 1172},Christchurch,11,Urban,TLA060_ChristchurchCity
+Hei Hei,1311,060,{'060': 1311},Christchurch,11,Urban,TLA060_ChristchurchCity
+Herbert,365,068,{'068': 365},Herbert,21,Rural,UR2025_exact
+Highfield,1865,064,{'064': 1865},Timaru,13,Urban,UR2025_parent_urban_area
+Hilderthorpe,21,068,{'068': 21},,,,NEEDS_DECISION
+Hillgrove,45,068,{'068': 45},,,,NEEDS_DECISION
+Hillmorton,742,060,{'060': 742},Christchurch,11,Urban,TLA060_ChristchurchCity
+Hillsborough,793,060,{'060': 793},Christchurch,11,Urban,TLA060_ChristchurchCity
+Hilton,65,064,{'064': 65},,,,NEEDS_DECISION
+Holmes Hill,654,068,{'068': 654},Oamaru,13,Urban,UR2025_parent_urban_area
+Hoon Hay,3218,060,{'060': 3218},Christchurch,11,Urban,TLA060_ChristchurchCity
+Hoon Hay Valley,205,060,{'060': 205},Christchurch,11,Urban,TLA060_ChristchurchCity
+Hopkins Valley,4,068,{'068': 4},,,,NEEDS_DECISION
+Hornby,6954,060,{'060': 6954},Christchurch,11,Urban,TLA060_ChristchurchCity
+Hornby South,13,062,{'062': 13},,,,NEEDS_DECISION
+Hororata,437,062,{'062': 437},Hororata,21,Rural,UR2025_exact
+Horsley Down,1,058,{'058': 1},,,,NEEDS_DECISION
+Hunter,56,066,{'066': 56},,,,NEEDS_DECISION
+Hunters Hills,37,066,"{'066': 36, '065': 1}",,,,NEEDS_DECISION
+Huntsbury,1132,060,{'060': 1132},Christchurch,11,Urban,TLA060_ChristchurchCity
+Hurunui,33,058,{'058': 33},,,,NEEDS_DECISION
+Hurunui Mouth,21,058,{'058': 21},,,,NEEDS_DECISION
+Hyde Park,737,060,{'060': 737},Christchurch,11,Urban,TLA060_ChristchurchCity
+Ikawai,103,066,{'066': 103},,,,NEEDS_DECISION
+Ilam,2427,060,{'060': 2427},Christchurch,11,Urban,TLA060_ChristchurchCity
+Inch Valley,13,068,{'068': 13},,,,NEEDS_DECISION
+Incholme,37,068,{'068': 37},,,,NEEDS_DECISION
+Inland Kaikoura Road,1,058,{'058': 1},,,,NEEDS_DECISION
+Island Cliff,42,068,{'068': 42},,,,NEEDS_DECISION
+Island Stream,15,068,{'068': 15},,,,NEEDS_DECISION
+Islington,1093,060,{'060': 1093},Christchurch,11,Urban,TLA060_ChristchurchCity
+Kaikoura,13,058,{'058': 13},Kaikōura,14,Urban,UR2025_exact
+Kakahu,261,064,{'064': 261},,,,NEEDS_DECISION
+Kakanui,442,068,{'068': 442},Kakanui,21,Rural,UR2025_exact
+Kauru Hill,12,068,{'068': 12},,,,NEEDS_DECISION
+Kennedys Bush,7,062,{'062': 7},,,,NEEDS_DECISION
+Kensington,705,064,{'064': 705},Timaru,13,Urban,UR2025_parent_urban_area
+Kerrytown,212,064,{'064': 212},Timaru,13,Urban,UR2025_parent_urban_area
+Kia Ora,28,068,{'068': 28},,,,NEEDS_DECISION
+Kimbell,86,065,{'065': 86},,,,NEEDS_DECISION
+Kirkliston,18,066,{'066': 18},,,,NEEDS_DECISION
+Kirwee,853,062,{'062': 853},Kirwee,21,Rural,UR2025_exact
+Kokoamo,16,068,{'068': 16},,,,NEEDS_DECISION
+Kokonga,1,068,{'068': 1},,,,NEEDS_DECISION
+Kurow,365,068,"{'066': 1, '068': 364}",Kurow,21,Rural,UR2025_exact
+Kyeburn Diggings,1,068,{'068': 1},,,,NEEDS_DECISION
+Lake Alexandrina,1,065,{'065': 1},,,,NEEDS_DECISION
+Lake Benmore,1,068,{'068': 1},,,,NEEDS_DECISION
+Lake Coleridge,129,062,{'062': 129},,,,NEEDS_DECISION
+Lake Ellesmere (Te Waihora),7,062,{'062': 7},,,,NEEDS_DECISION
+Lake Grasmere,1,062,{'062': 1},,,,NEEDS_DECISION
+Lake Hawdon,1,062,{'062': 1},,,,NEEDS_DECISION
+Lake Marymere,1,062,{'062': 1},,,,NEEDS_DECISION
+Lake Middleton,1,068,{'068': 1},,,,NEEDS_DECISION
+Lake Ohau,163,068,"{'068': 162, '065': 1}",,,,NEEDS_DECISION
+Lake Pearson,34,062,{'062': 34},,,,NEEDS_DECISION
+Lake Sarah,1,062,{'062': 1},,,,NEEDS_DECISION
+Lake Sumner Road,5,058,{'058': 5},,,,NEEDS_DECISION
+Lake Tekapo,688,065,{'065': 688},Tekapō,21,Rural,UR2025_parent_urban_area
+Lake Wardell,1,065,{'065': 1},,,,NEEDS_DECISION
+Lansdowne,32,062,{'062': 32},,,,NEEDS_DECISION
+Le Bons Bay,151,060,{'060': 151},Christchurch,11,Urban,TLA060_ChristchurchCity
+Leamington Valley,3,058,{'058': 3},,,,NEEDS_DECISION
+Leamington Valley (Cheviot),1,058,{'058': 1},,,,NEEDS_DECISION
+Leeston,2003,062,{'062': 2003},Leeston,14,Urban,UR2025_exact
+Leithfield,329,058,{'058': 329},Leithfield,21,Rural,UR2025_exact
+Leithfield - Sefton,3,058,{'058': 3},,,,NEEDS_DECISION
+Leithfield Beach,250,058,{'058': 250},Leithfield Beach,21,Rural,UR2025_exact
+Levels,302,064,{'064': 302},Timaru,13,Urban,UR2025_parent_urban_area
+Levels Valley,200,064,{'064': 200},Timaru,13,Urban,UR2025_parent_urban_area
+Lincoln,5690,062,{'062': 5690},Lincoln,14,Urban,UR2025_exact
+Lincoln University,13,062,{'062': 13},,,,NEEDS_DECISION
+Lindis Pass,5,068,{'068': 5},,,,NEEDS_DECISION
+Linwood,5489,060,{'060': 5489},Christchurch,11,Urban,TLA060_ChristchurchCity
+Little River,564,060,{'060': 564},Little River,21,Rural,UR2025_exact
+Livingstone,75,068,{'068': 75},,,,NEEDS_DECISION
+Loburn,1,058,{'058': 1},,,,NEEDS_DECISION
+Loburn North,1,058,{'058': 1},,,,NEEDS_DECISION
+Lowry,6,058,{'058': 6},,,,NEEDS_DECISION
+Lyford,1,058,{'058': 1},,,,NEEDS_DECISION
+Lyndon,2,058,{'058': 2},,,,NEEDS_DECISION
+Lyttelton,1897,060,{'060': 1897},Lyttelton,14,Urban,UR2025_exact
+Macraes,85,068,{'068': 85},,,,NEEDS_DECISION
+Maerewhenua,25,068,{'068': 25},,,,NEEDS_DECISION
+Maheno,147,068,{'068': 147},Maheno,21,Rural,UR2025_exact
+Mairehau,1455,060,{'060': 1455},Christchurch,11,Urban,TLA060_ChristchurchCity
+Makareao,22,068,{'068': 22},,,,NEEDS_DECISION
+Makikihi,193,066,{'066': 193},Mākikihi,21,Rural,UR2025_exact
+Malvern Hills,85,062,{'062': 85},,,,NEEDS_DECISION
+Maori Hill,608,064,{'064': 608},Timaru,13,Urban,UR2025_parent_urban_area
+Maraeweka,15,068,{'068': 15},,,,NEEDS_DECISION
+Marchwiel,1480,064,{'064': 1480},Timaru,13,Urban,UR2025_parent_urban_area
+Marshland,1410,060,{'060': 1410},Christchurch,11,Urban,TLA060_ChristchurchCity
+Masham,248,060,{'060': 248},Christchurch,11,Urban,TLA060_ChristchurchCity
+Masons Flat,22,058,{'058': 22},,,,NEEDS_DECISION
+Maungati,131,066,"{'066': 120, '065': 1, '064': 10}",,,,NEEDS_DECISION
+McCormacks Bay,395,060,{'060': 395},Christchurch,11,Urban,TLA060_ChristchurchCity
+McLeans Island,2,062,{'062': 2},,,,NEEDS_DECISION
+Medbury,29,058,{'058': 29},,,,NEEDS_DECISION
+Medbury Forest,2,058,{'058': 2},,,,NEEDS_DECISION
+Merivale,2013,060,{'060': 2013},Christchurch,11,Urban,TLA060_ChristchurchCity
+Middle Valley,52,065,{'065': 52},,,,NEEDS_DECISION
+Middleton,619,060,{'060': 619},Christchurch,11,Urban,TLA060_ChristchurchCity
+Milford,181,064,{'064': 181},Timaru,13,Urban,UR2025_parent_urban_area
+Moeraki,343,068,{'068': 343},Oamaru,13,Urban,UR2025_parent_urban_area
+Moncks Bay,259,060,{'060': 259},Christchurch,11,Urban,TLA060_ChristchurchCity
+Moncks Spur,407,060,{'060': 407},Christchurch,11,Urban,TLA060_ChristchurchCity
+Moonlight,6,068,{'068': 6},,,,NEEDS_DECISION
+Morrisons,5,068,{'068': 5},,,,NEEDS_DECISION
+Morven,164,066,{'066': 164},,,,NEEDS_DECISION
+Motukarara,339,060,"{'062': 153, '060': 186}",Christchurch,11,Urban,TLA060_ChristchurchCity
+Motunau,2,058,{'058': 2},,,,NEEDS_DECISION
+Motunau - Greta Valley,23,058,{'058': 23},,,,NEEDS_DECISION
+Motunau Beach,158,058,{'058': 158},Motunau Beach,21,Rural,UR2025_exact
+Mount Buster,9,068,{'068': 9},,,,NEEDS_DECISION
+Mount Dobson,4,065,{'065': 4},,,,NEEDS_DECISION
+Mount Fortune,4,068,{'068': 4},,,,NEEDS_DECISION
+Mount Stalker,12,068,{'068': 12},,,,NEEDS_DECISION
+Mt Lyford,17,058,{'058': 17},,,,NEEDS_DECISION
+Mt Lyford (Pte Road),82,058,{'058': 82},,,,NEEDS_DECISION
+Mt Pleasant,940,060,{'060': 940},Christchurch,11,Urban,TLA060_ChristchurchCity
+New Brighton,2784,060,{'060': 2784},Christchurch,11,Urban,TLA060_ChristchurchCity
+Ngapara,76,068,{'068': 76},,,,NEEDS_DECISION
+Normanby,97,064,{'064': 97},,,,NEEDS_DECISION
+North Beach,129,060,{'060': 129},Christchurch,11,Urban,TLA060_ChristchurchCity
+North Linwood,1341,060,{'060': 1341},Christchurch,11,Urban,TLA060_ChristchurchCity
+North New Brighton,1890,060,{'060': 1890},Christchurch,11,Urban,TLA060_ChristchurchCity
+North Shore,158,060,{'060': 158},Christchurch,11,Urban,TLA060_ChristchurchCity
+Northcote,796,060,{'060': 796},Christchurch,11,Urban,TLA060_ChristchurchCity
+Oaklands,3329,060,{'060': 3329},Christchurch,11,Urban,TLA060_ChristchurchCity
+Oamaru,1489,068,{'068': 1489},Oamaru,13,Urban,UR2025_exact
+Oamaru North,2353,068,{'068': 2353},Oamaru North,14?,Urban,UR2025_standalone_urban
+Oceanview,397,064,{'064': 397},Timaru,13,Urban,UR2025_parent_urban_area
+Okains Bay,245,060,{'060': 245},Christchurch,11,Urban,TLA060_ChristchurchCity
+Okuku,1,058,{'058': 1},,,,NEEDS_DECISION
+Omarama,356,068,{'068': 356},Ōmārama,21,Rural,UR2025_exact
+Omihi,119,058,{'058': 119},,,,NEEDS_DECISION
+Opawa,1225,060,{'060': 1225},Christchurch,11,Urban,TLA060_ChristchurchCity
+Orari,205,064,{'064': 205},Ōrarī,21,Rural,UR2025_exact
+Orari Bridge,83,064,{'064': 83},Ōrarī,21,Rural,UR2025_rural_settlement_variant
+Orari Gorge,26,064,{'064': 26},,,,NEEDS_DECISION
+Orton,50,064,{'064': 50},,,,NEEDS_DECISION
+Otaio,193,066,{'066': 193},,,,NEEDS_DECISION
+Otekaieke,60,068,{'068': 60},,,,NEEDS_DECISION
+Otematata,515,068,{'068': 515},Otematata,21,Rural,UR2025_exact
+Otiake,74,068,{'068': 74},,,,NEEDS_DECISION
+Otipua Creek,109,064,{'064': 109},,,,NEEDS_DECISION
+Ouruhia,213,060,{'060': 213},Christchurch,11,Urban,TLA060_ChristchurchCity
+Papakaio,62,068,{'068': 62},,,,NEEDS_DECISION
+Papanui,5126,060,{'060': 5126},Christchurch,11,Urban,TLA060_ChristchurchCity
+Pareora,261,064,{'064': 261},Pareora,21,Rural,UR2025_exact
+Pareora West,110,064,{'064': 110},,,,NEEDS_DECISION
+Parklands,1899,060,{'060': 1899},Christchurch,11,Urban,TLA060_ChristchurchCity
+Parkside,1170,064,{'064': 1170},Timaru,13,Urban,UR2025_parent_urban_area
+Parnassus,86,058,{'058': 86},,,,NEEDS_DECISION
+Peebles,53,068,{'068': 53},,,,NEEDS_DECISION
+Peel Forest,225,064,"{'065': 5, '064': 220}",,,,NEEDS_DECISION
+Phillipstown,762,060,{'060': 762},Christchurch,11,Urban,TLA060_ChristchurchCity
+Pigeon Bay,134,060,{'060': 134},Christchurch,11,Urban,TLA060_ChristchurchCity
+Pleasant Point,779,064,{'064': 779},Pleasant Point,14,Urban,UR2025_exact
+Pleasant Valley,65,064,{'064': 65},,,,NEEDS_DECISION
+Poplars Range,8,058,{'058': 8},,,,NEEDS_DECISION
+Port Levy,147,060,{'060': 147},Christchurch,11,Urban,TLA060_ChristchurchCity
+Port Robinson,73,058,{'058': 73},,,,NEEDS_DECISION
+Prebbleton,2591,062,{'062': 2591},Prebbleton,14,Urban,UR2025_exact
+Pukaki,75,065,"{'065': 74, '068': 1}",,,,NEEDS_DECISION
+Pukeuri,73,068,{'068': 73},,,,NEEDS_DECISION
+Quailburn,12,068,{'068': 12},,,,NEEDS_DECISION
+Queens Flat,11,068,{'068': 11},,,,NEEDS_DECISION
+Queenspark,906,060,{'060': 906},Christchurch,11,Urban,TLA060_ChristchurchCity
+Rangitata,85,064,{'064': 85},,,,NEEDS_DECISION
+Rangitata Island,23,064,{'064': 23},,,,NEEDS_DECISION
+Redcliffs,731,060,{'060': 731},Christchurch,11,Urban,TLA060_ChristchurchCity
+Redruth,180,064,{'064': 180},Timaru,13,Urban,UR2025_parent_urban_area
+Redwood,3167,060,{'060': 3167},Christchurch,11,Urban,TLA060_ChristchurchCity
+Redwood Park,66,060,{'060': 66},Christchurch,11,Urban,TLA060_ChristchurchCity
+Reidston,112,068,{'068': 112},,,,NEEDS_DECISION
+Riccarton,4627,060,{'060': 4627},Christchurch,11,Urban,TLA060_ChristchurchCity
+Riccarton Park,702,060,{'060': 702},Christchurch,11,Urban,TLA060_ChristchurchCity
+Richmond,2390,060,"{'068': 61, '060': 2329}",Christchurch,11,Urban,TLA060_ChristchurchCity
+Richmond Hill,135,060,{'060': 135},Christchurch,11,Urban,TLA060_ChristchurchCity
+Rolleston,13607,062,{'062': 13607},Rolleston,13,Urban,UR2025_exact
+Rolleston Range,1,062,{'062': 1},,,,NEEDS_DECISION
+Rosebery,25,068,{'068': 25},,,,NEEDS_DECISION
+Rosewill,75,064,{'064': 75},,,,NEEDS_DECISION
+Rotherham,199,058,{'058': 199},Rotherham,21,Rural,UR2025_exact
+Round Hill,8,068,{'068': 8},,,,NEEDS_DECISION
+Russley,1031,060,{'060': 1031},Christchurch,11,Urban,TLA060_ChristchurchCity
+Saint Andrews,265,066,"{'066': 263, '064': 2}",Saint Andrews,14?,Urban,UR2025_standalone_urban
+Saint Bathans,1,068,{'068': 1},,,,NEEDS_DECISION
+Salisbury,32,064,{'064': 32},,,,NEEDS_DECISION
+Scarborough,552,060,"{'064': 24, '060': 528}",Christchurch,11,Urban,TLA060_ChristchurchCity
+Scargill,95,058,{'058': 95},,,,NEEDS_DECISION
+Scargill Valley,9,058,{'058': 9},,,,NEEDS_DECISION
+Seadown,158,064,{'064': 158},Timaru,13,Urban,UR2025_parent_urban_area
+Seaview,938,064,{'064': 938},Timaru,13,Urban,UR2025_parent_urban_area
+Sefton,4,058,{'058': 4},Sefton,21,Rural,UR2025_exact
+Sefton - Balcairn,25,058,{'058': 25},,,,NEEDS_DECISION
+Sheffield,289,062,{'062': 289},,,,NEEDS_DECISION
+Shirley,2273,060,{'060': 2273},Christchurch,11,Urban,TLA060_ChristchurchCity
+Sibbald,5,065,"{'065': 3, '064': 2}",,,,NEEDS_DECISION
+Smithfield,6,064,{'064': 6},,,,NEEDS_DECISION
+Snowdon,23,062,{'062': 23},,,,NEEDS_DECISION
+Sockburn,1509,060,{'060': 1509},Christchurch,11,Urban,TLA060_ChristchurchCity
+Somerfield,1369,060,{'060': 1369},Christchurch,11,Urban,TLA060_ChristchurchCity
+South Hill,1286,068,{'068': 1286},Oamaru,13,Urban,UR2025_parent_urban_area
+South New Brighton,1458,060,{'060': 1458},Christchurch,11,Urban,TLA060_ChristchurchCity
+Southbridge,954,062,{'062': 954},Southbridge,21,Rural,UR2025_exact
+Southburn,58,066,{'066': 58},,,,NEEDS_DECISION
+Southshore,644,060,{'060': 644},Christchurch,11,Urban,TLA060_ChristchurchCity
+Spencerville,270,060,{'060': 270},Spencerville,21,Rural,UR2025_exact
+Spotswood,35,058,{'058': 35},,,,NEEDS_DECISION
+Spotswood - Cheviot,11,058,{'058': 11},,,,NEEDS_DECISION
+Spreydon,6041,060,{'060': 6041},Christchurch,11,Urban,TLA060_ChristchurchCity
+Springfield,356,062,{'062': 356},Springfield,21,Rural,UR2025_exact
+Springston,1577,062,{'062': 1577},Springston,21,Rural,UR2025_exact
+St Albans,10099,060,{'060': 10099},Christchurch,11,Urban,TLA060_ChristchurchCity
+St Andrews Hill,611,060,{'060': 611},Christchurch,11,Urban,TLA060_ChristchurchCity
+St Martins,1666,060,{'060': 1666},Christchurch,11,Urban,TLA060_ChristchurchCity
+Stag And Spey,8,058,{'058': 8},,,,NEEDS_DECISION
+Station Peak,13,066,"{'066': 9, '068': 4}",,,,NEEDS_DECISION
+Stoneburn,6,068,{'068': 6},,,,NEEDS_DECISION
+Stonyhurst,6,058,{'058': 6},,,,NEEDS_DECISION
+Styx,1003,060,{'060': 1003},Christchurch,11,Urban,TLA060_ChristchurchCity
+Sumner,1326,060,{'060': 1326},Christchurch,11,Urban,TLA060_ChristchurchCity
+Sutherlands,80,064,{'064': 80},,,,NEEDS_DECISION
+Sydenham,3936,060,{'060': 3936},Christchurch,11,Urban,TLA060_ChristchurchCity
+Tai Tapu,660,062,{'062': 660},Tai Tapu,21,Rural,UR2025_exact
+Taiko,29,064,"{'065': 3, '064': 26}",,,,NEEDS_DECISION
+Tapui,21,068,{'068': 21},,,,NEEDS_DECISION
+Tekapo,89,065,"{'066': 6, '065': 83}",Tekapō,21,Rural,UR2025_exact
+Tekapo Military Camp,6,065,{'065': 6},,,,NEEDS_DECISION
+Tekoa,1,058,{'058': 1},,,,NEEDS_DECISION
+Templeton,975,060,"{'062': 91, '060': 884}",Christchurch,11,Urban,TLA060_ChristchurchCity
+Temuka,2799,064,{'064': 2799},Temuka,14,Urban,UR2025_exact
+Teschemakers,8,068,{'068': 8},,,,NEEDS_DECISION
+The Dasher,5,068,{'068': 5},,,,NEEDS_DECISION
+The Peaks,21,058,{'058': 21},,,,NEEDS_DECISION
+Timaru,803,064,{'064': 803},Timaru,13,Urban,UR2025_exact
+Timaru Port,90,064,{'064': 90},,,,NEEDS_DECISION
+Tiroiti,1,068,{'068': 1},,,,NEEDS_DECISION
+Tokarahi,50,068,{'068': 50},,,,NEEDS_DECISION
+Totara,52,068,{'068': 52},,,,NEEDS_DECISION
+Totara Peak,4,068,{'068': 4},,,,NEEDS_DECISION
+Totara Valley,90,064,{'064': 90},,,,NEEDS_DECISION
+Travis,250,060,{'060': 250},Christchurch,11,Urban,TLA060_ChristchurchCity
+Twizel,1949,065,{'065': 1949},Twizel,14,Urban,UR2025_exact
+Upper Riccarton,3887,060,{'060': 3887},Christchurch,11,Urban,TLA060_ChristchurchCity
+Waddington,72,062,{'062': 72},,,,NEEDS_DECISION
+Waianakarua,44,068,{'068': 44},,,,NEEDS_DECISION
+Waiareka Junction,138,068,{'068': 138},Oamaru,13,Urban,UR2025_parent_urban_area
+Waiau,341,058,{'058': 341},Waiau,21,Rural,UR2025_exact
+Waiau - Conway,64,058,{'058': 64},,,,NEEDS_DECISION
+Waihao Downs,48,066,{'066': 48},,,,NEEDS_DECISION
+Waihaorunga,42,066,{'066': 42},,,,NEEDS_DECISION
+Waihemo,6,068,{'068': 6},,,,NEEDS_DECISION
+Waikari,274,058,{'058': 274},Waikari,21,Rural,UR2025_exact
+Waikari - Hawarden,2,058,{'058': 2},,,,NEEDS_DECISION
+Waikari - Scargill,25,058,{'058': 25},,,,NEEDS_DECISION
+Waikaura,7,068,{'068': 7},,,,NEEDS_DECISION
+Waimairi Beach,371,060,{'060': 371},Christchurch,11,Urban,TLA060_ChristchurchCity
+Waimataitai,826,064,{'064': 826},Timaru,13,Urban,UR2025_parent_urban_area
+Waimate,2746,066,{'066': 2746},Waimate,14,Urban,UR2025_exact
+Wainoni,2295,060,{'060': 2295},Christchurch,11,Urban,TLA060_ChristchurchCity
+Wainui,406,060,{'060': 406},Christchurch,11,Urban,TLA060_ChristchurchCity
+Waipara,286,058,{'058': 286},Waipara,21,Rural,UR2025_exact
+Waitaki Bridge,88,068,{'068': 88},,,,NEEDS_DECISION
+Waitohi,76,064,{'064': 76},,,,NEEDS_DECISION
+Waltham,2007,060,{'060': 2007},Christchurch,11,Urban,TLA060_ChristchurchCity
+Washdyke,485,064,{'064': 485},Timaru,13,Urban,UR2025_parent_urban_area
+Washdyke Flat,34,064,{'064': 34},,,,NEEDS_DECISION
+Watlington,948,064,{'064': 948},Timaru,13,Urban,UR2025_parent_urban_area
+Waynes,31,068,{'068': 31},,,,NEEDS_DECISION
+Weka Pass,7,058,{'058': 7},,,,NEEDS_DECISION
+Wentworth Park,286,060,{'060': 286},Christchurch,11,Urban,TLA060_ChristchurchCity
+West End,1266,064,{'064': 1266},Timaru,13,Urban,UR2025_parent_urban_area
+West Melton,2434,062,{'062': 2434},West Melton,14,Urban,UR2025_exact
+Westhaven,802,060,{'060': 802},Christchurch,11,Urban,TLA060_ChristchurchCity
+Westlake,334,060,{'060': 334},Christchurch,11,Urban,TLA060_ChristchurchCity
+Westmorland,976,060,{'060': 976},Christchurch,11,Urban,TLA060_ChristchurchCity
+Weston,565,068,{'068': 565},Oamaru,13,Urban,UR2025_parent_urban_area
+Whiterock,5,058,{'058': 5},,,,NEEDS_DECISION
+Whitstone,33,068,{'068': 33},,,,NEEDS_DECISION
+Winchester,171,064,{'064': 171},Winchester,21,Rural,UR2025_exact
+Windsor,67,068,{'068': 67},,,,NEEDS_DECISION
+Windsor Park,22,068,{'068': 22},,,,NEEDS_DECISION
+Windwhistle,283,062,{'062': 283},,,,NEEDS_DECISION
+Woodbury,187,064,{'064': 187},Woodbury,21,Rural,UR2025_exact
+Woolston,4442,060,{'060': 4442},Christchurch,11,Urban,TLA060_ChristchurchCity
+Yaldhurst,1281,060,{'060': 1281},Christchurch,11,Urban,TLA060_ChristchurchCity
