@@ -1,0 +1,1541 @@
+---
+title: "DATA309 Housing Affordability — Statistical Analysis"
+author: "Mohammad Zaid Khan"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: '2'
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 10,
+  fig.height = 6
+)
+
+library(tidyverse)
+library(readxl)
+library(broom)
+library(lmtest)
+library(sandwich)
+library(car)
+library(knitr)
+
+# ------------------------------------------------------------
+# Helper functions
+# ------------------------------------------------------------
+
+first_existing <- function(files) {
+
+  found <- files[file.exists(files)]
+
+  if(length(found) == 0) {
+    stop(
+      paste(
+        "Could not find any of these files:",
+        paste(files, collapse = ", ")
+      )
+    )
+  }
+
+  found[1]
+}
+
+
+nw_tidy <- function(model, model_name, lag_length = 12) {
+
+  test <- coeftest(
+    model,
+    vcov. = NeweyWest(
+      model,
+      lag = lag_length,
+      prewhite = FALSE,
+      adjust = TRUE
+    )
+  )
+
+  data.frame(
+    Model = model_name,
+    term = rownames(test),
+    estimate = test[, 1],
+    std.error = test[, 2],
+    statistic = test[, 3],
+    p.value = test[, 4],
+    row.names = NULL
+  )
+}
+
+
+first_non_missing <- function(x) {
+
+  x <- x[!is.na(x)]
+
+  if(length(x) == 0) {
+    return(NA_real_)
+  }
+
+  x[1]
+}
+```
+
+# 1. Analysis Overview
+
+This analysis investigates housing affordability and housing-market
+conditions in Canterbury.
+
+The analysis focuses on three questions:
+
+1. How does housing affordability in Canterbury compare with New Zealand?
+2. What economic and housing-market factors are associated with
+   Canterbury house-price growth?
+3. Have household incomes and rents kept pace with Canterbury house
+   prices?
+
+The analysis uses descriptive statistics, graphical exploratory analysis,
+paired tests, regression modelling, lagged explanatory variables and
+time-series diagnostics.
+
+Because the data are observational, regression coefficients are
+interpreted as **associations rather than causal effects**.
+
+---
+
+# 2. Data Import
+
+All datasets should be stored in the same project folder as this R
+Markdown file.
+
+```{r import}
+affordability_file <- first_existing(
+  c(
+    "house-value-to-income-multiple-and-mortgage-payment-proportion-of-income (1).csv",
+    "house-value-to-income-multiple-and-mortgage-payment-proportion-of-income.csv"
+  )
+)
+
+time_series_file <- first_existing(
+  c(
+    "Time_series_data.xlsx",
+    "Time_series_data(1).xlsx",
+    "Time_series_data(2).xlsx",
+    "Time_series_data (1).xlsx",
+    "Time_series_data (2).xlsx"
+  )
+)
+
+affordability <- read.csv(
+  affordability_file,
+  stringsAsFactors = FALSE
+)
+
+# Standardise CSV column names
+names(affordability) <- make.names(
+  names(affordability)
+)
+
+ts_raw <- read_excel(
+  time_series_file
+)
+
+cat(
+  "Affordability file:",
+  affordability_file,
+  "\n"
+)
+
+cat(
+  "Time-series file:",
+  time_series_file,
+  "\n"
+)
+```
+
+# 3. Analysis 1 — Canterbury vs New Zealand Affordability
+
+## 3.1 Prepare affordability data
+
+```{r analysis1-prepare}
+affordability_compare <- affordability %>%
+  transmute(
+    Year =
+      Year,
+
+    Canterbury_ValueIncome =
+      Canterbury.Region.House.value.to.income,
+
+    NZ_ValueIncome =
+      New.Zealand.House.value.to.income,
+
+    Canterbury_Mortgage =
+      Canterbury.Region.Mortgage.payment.proportion.of.income.,
+
+    NZ_Mortgage =
+      New.Zealand.Mortgage.payment.proportion.of.income.
+  ) %>%
+  mutate(
+    ValueIncome_Gap =
+      Canterbury_ValueIncome -
+      NZ_ValueIncome,
+
+    Mortgage_Gap =
+      Canterbury_Mortgage -
+      NZ_Mortgage
+  ) %>%
+  arrange(Year)
+
+kable(
+  affordability_compare,
+  digits = 2,
+  col.names = c(
+    "Year",
+    "Canterbury Value-to-Income",
+    "NZ Value-to-Income",
+    "Canterbury Mortgage Burden (%)",
+    "NZ Mortgage Burden (%)",
+    "Value-to-Income Gap",
+    "Mortgage Gap (pp)"
+  ),
+  caption =
+    "Canterbury and New Zealand Affordability Measures"
+)
+```
+
+## 3.2 Average affordability
+
+```{r analysis1-summary}
+comparison_summary <- affordability_compare %>%
+  summarise(
+    Canterbury_Mean_ValueIncome =
+      mean(
+        Canterbury_ValueIncome,
+        na.rm = TRUE
+      ),
+
+    NZ_Mean_ValueIncome =
+      mean(
+        NZ_ValueIncome,
+        na.rm = TRUE
+      ),
+
+    Mean_ValueIncome_Gap =
+      mean(
+        ValueIncome_Gap,
+        na.rm = TRUE
+      ),
+
+    Canterbury_Mean_Mortgage =
+      mean(
+        Canterbury_Mortgage,
+        na.rm = TRUE
+      ),
+
+    NZ_Mean_Mortgage =
+      mean(
+        NZ_Mortgage,
+        na.rm = TRUE
+      ),
+
+    Mean_Mortgage_Gap =
+      mean(
+        Mortgage_Gap,
+        na.rm = TRUE
+      )
+  )
+
+kable(
+  comparison_summary,
+  digits = 2,
+  col.names = c(
+    "Cant. HVI",
+    "NZ HVI",
+    "HVI Gap",
+    "Cant. Mortgage (%)",
+    "NZ Mortgage (%)",
+    "Mortgage Gap (pp)"
+  ),
+  caption =
+    "Average Affordability: Canterbury vs New Zealand"
+)
+```
+
+### Interpretation
+
+Across the available period, Canterbury's average house value-to-income
+multiple was approximately **4.99**, compared with approximately
+**5.75** nationally.
+
+Canterbury's average mortgage-payment burden was approximately
+**31.37%**, compared with approximately **35.89%** nationally.
+
+This suggests that Canterbury has generally been more affordable than
+New Zealand overall.
+
+---
+
+## 3.3 House value-to-income comparison
+
+```{r analysis1-valueincome-plot}
+value_income_long <- affordability_compare %>%
+  select(
+    Year,
+    Canterbury =
+      Canterbury_ValueIncome,
+    `New Zealand` =
+      NZ_ValueIncome
+  ) %>%
+  pivot_longer(
+    -Year,
+    names_to = "Region",
+    values_to = "ValueIncome"
+  )
+
+ggplot(
+  value_income_long,
+  aes(
+    x = Year,
+    y = ValueIncome,
+    colour = Region
+  )
+) +
+  geom_line(
+    linewidth = 1.1
+  ) +
+  geom_point(
+    size = 2
+  ) +
+  labs(
+    title =
+      "House Value-to-Income: Canterbury vs New Zealand",
+    subtitle =
+      "2005–2026",
+    x = "Year",
+    y =
+      "House value-to-income multiple",
+    colour = NULL
+  ) +
+  theme_minimal(
+    base_size = 13
+  )
+```
+
+---
+
+## 3.4 Mortgage-payment burden comparison
+
+```{r analysis1-mortgage-plot}
+mortgage_long <- affordability_compare %>%
+  select(
+    Year,
+    Canterbury =
+      Canterbury_Mortgage,
+    `New Zealand` =
+      NZ_Mortgage
+  ) %>%
+  pivot_longer(
+    -Year,
+    names_to = "Region",
+    values_to = "MortgageBurden"
+  )
+
+ggplot(
+  mortgage_long,
+  aes(
+    x = Year,
+    y = MortgageBurden,
+    colour = Region
+  )
+) +
+  geom_line(
+    linewidth = 1.1
+  ) +
+  geom_point(
+    size = 2
+  ) +
+  labs(
+    title =
+      "Mortgage Payment Burden: Canterbury vs New Zealand",
+    subtitle =
+      "2005–2026",
+    x = "Year",
+    y =
+      "Mortgage payment proportion of income (%)",
+    colour = NULL
+  ) +
+  theme_minimal(
+    base_size = 13
+  )
+```
+
+---
+
+## 3.5 Affordability gap
+
+```{r analysis1-gap}
+ggplot(
+  affordability_compare,
+  aes(
+    x = Year,
+    y = ValueIncome_Gap
+  )
+) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed",
+    colour = "grey40"
+  ) +
+  geom_line(
+    colour = "#D55E00",
+    linewidth = 1.1
+  ) +
+  geom_point(
+    colour = "#D55E00",
+    size = 2
+  ) +
+  labs(
+    title =
+      "Canterbury's House Value-to-Income Gap Relative to NZ",
+    subtitle =
+      "Negative values indicate lower ratios in Canterbury",
+    x = "Year",
+    y =
+      "Canterbury minus New Zealand"
+  ) +
+  theme_minimal(
+    base_size = 13
+  )
+```
+
+---
+
+## 3.6 Paired statistical tests
+
+Because the Canterbury and New Zealand observations refer to the same
+years, paired tests are used.
+
+```{r analysis1-tests}
+value_test <- t.test(
+  affordability_compare$Canterbury_ValueIncome,
+  affordability_compare$NZ_ValueIncome,
+  paired = TRUE
+)
+
+mortgage_test <- t.test(
+  affordability_compare$Canterbury_Mortgage,
+  affordability_compare$NZ_Mortgage,
+  paired = TRUE
+)
+
+value_test
+
+mortgage_test
+```
+
+### Finding
+
+The mean Canterbury house value-to-income multiple was approximately
+**0.76 lower than New Zealand**.
+
+This difference was statistically significant:
+
+**p < 0.001**.
+
+Canterbury's mortgage-payment burden was approximately **4.52 percentage
+points lower than New Zealand**, also with:
+
+**p < 0.001**.
+
+Therefore, Canterbury has historically been significantly more
+affordable than New Zealand overall on both measures.
+
+However, affordability still deteriorated considerably during the early
+2020s.
+
+---
+
+# 4. Analysis 2 — What Is Associated with Canterbury House-Price Growth?
+
+## 4.1 Prepare monthly housing-market data
+
+```{r analysis2-prepare}
+analysis2 <- ts_raw %>%
+  transmute(
+    Date =
+      as.Date(Date),
+
+    Canterbury_Price =
+      as.numeric(
+        `Canterbury Median sale price`
+      ),
+
+    NZ_Price =
+      as.numeric(
+        `NZ Median sale price`
+      ),
+
+    Mortgage_1Y =
+      as.numeric(
+        `1 Year Mortgage Rate`
+      ),
+
+    Net_Migration =
+      as.numeric(
+        `Net migration`
+      ),
+
+    BrightLine =
+      as.numeric(
+        `Bright Line Test Period`
+      ),
+
+    Canterbury_Sales =
+      as.numeric(
+        `Volume Sold Canterbury`
+      ),
+
+    LVR_Total =
+      as.numeric(
+        `LVR Total New Commitments (NZDm)`
+      ),
+
+    Canterbury_Consents =
+      as.numeric(
+        `Canterbury Dwelling Unit Consents`
+      ),
+
+    Canterbury_Rent =
+      as.numeric(
+        `Canterbury Median Rent`
+      ),
+
+    NZ_Rent =
+      as.numeric(
+        `Median Rent`
+      ),
+
+    Canterbury_Income =
+      as.numeric(
+        `Mean Income Canterbury`
+      ),
+
+    NZ_Income =
+      as.numeric(
+        `Mean Income`
+      )
+  ) %>%
+  arrange(Date)
+```
+
+---
+
+## 4.2 Create growth rates and lagged variables
+
+Year-on-year changes are used to reduce the risk of misleading
+relationships caused purely by common upward trends.
+
+```{r analysis2-transform}
+analysis2 <- analysis2 %>%
+  mutate(
+    Year =
+      as.integer(
+        format(
+          Date,
+          "%Y"
+        )
+      ),
+
+    Canterbury_Price_YoY =
+      100 * (
+        Canterbury_Price /
+          lag(
+            Canterbury_Price,
+            12
+          ) - 1
+      ),
+
+    NZ_Price_YoY =
+      100 * (
+        NZ_Price /
+          lag(
+            NZ_Price,
+            12
+          ) - 1
+      ),
+
+    Canterbury_Sales_YoY =
+      100 * (
+        Canterbury_Sales /
+          lag(
+            Canterbury_Sales,
+            12
+          ) - 1
+      ),
+
+    LVR_Total_YoY =
+      100 * (
+        LVR_Total /
+          lag(
+            LVR_Total,
+            12
+          ) - 1
+      ),
+
+    Canterbury_Consents_YoY =
+      100 * (
+        Canterbury_Consents /
+          lag(
+            Canterbury_Consents,
+            12
+          ) - 1
+      ),
+
+    Migration_Change12 =
+      Net_Migration -
+      lag(
+        Net_Migration,
+        12
+      ),
+
+    Mortgage1Y_Lag6 =
+      lag(
+        Mortgage_1Y,
+        6
+      ),
+
+    Migration_Lag6 =
+      lag(
+        Migration_Change12,
+        6
+      ),
+
+    LVRGrowth_Lag6 =
+      lag(
+        LVR_Total_YoY,
+        6
+      ),
+
+    Consents_Lag12 =
+      lag(
+        Canterbury_Consents_YoY,
+        12
+      ),
+
+    SalesGrowth_Lag1 =
+      lag(
+        Canterbury_Sales_YoY,
+        1
+      )
+  )
+```
+
+---
+
+## 4.3 Canterbury vs national house-price growth
+
+```{r analysis2-national-plot}
+ggplot(
+  analysis2,
+  aes(
+    x = NZ_Price_YoY,
+    y = Canterbury_Price_YoY
+  )
+) +
+  geom_point(
+    alpha = 0.65,
+    colour = "#D55E00"
+  ) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    colour = "#0072B2"
+  ) +
+  labs(
+    title =
+      "Canterbury House-Price Growth vs New Zealand",
+    subtitle =
+      "Year-on-year median sale-price growth",
+    x =
+      "New Zealand house-price growth (%)",
+    y =
+      "Canterbury house-price growth (%)"
+  ) +
+  theme_minimal(
+    base_size = 13
+  )
+```
+
+---
+
+## 4.4 Key regression models
+
+Only the models that contribute directly to the final interpretation are
+retained.
+
+```{r analysis2-models}
+model_nz <- lm(
+  Canterbury_Price_YoY ~
+    NZ_Price_YoY,
+  data = analysis2
+)
+
+model_rate <- lm(
+  Canterbury_Price_YoY ~
+    Mortgage1Y_Lag6,
+  data = analysis2
+)
+
+model_credit <- lm(
+  Canterbury_Price_YoY ~
+    LVRGrowth_Lag6,
+  data = analysis2
+)
+
+main_model <- lm(
+  Canterbury_Price_YoY ~
+    NZ_Price_YoY +
+    Mortgage1Y_Lag6 +
+    Migration_Lag6 +
+    LVRGrowth_Lag6 +
+    Consents_Lag12 +
+    SalesGrowth_Lag1 +
+    BrightLine,
+  data = analysis2
+)
+```
+
+---
+
+## 4.5 Model comparison
+
+```{r analysis2-comparison}
+analysis2_models <- list(
+  "NZ housing market" =
+    model_nz,
+
+  "Mortgage rate" =
+    model_rate,
+
+  "Credit growth" =
+    model_credit,
+
+  "Combined model" =
+    main_model
+)
+
+model_comparison <- purrr::imap_dfr(
+  analysis2_models,
+  ~ broom::glance(.x) %>%
+    mutate(
+      Model = .y
+    )
+) %>%
+  select(
+    Model,
+    r.squared,
+    adj.r.squared,
+    statistic,
+    p.value,
+    nobs,
+    AIC,
+    BIC
+  )
+
+kable(
+  model_comparison,
+  digits = 3,
+  col.names = c(
+    "Model",
+    "R²",
+    "Adjusted R²",
+    "F-statistic",
+    "p-value",
+    "Observations",
+    "AIC",
+    "BIC"
+  ),
+  caption =
+    "Canterbury House-Price Model Comparison"
+)
+```
+
+---
+
+## 4.6 Newey-West robust inference
+
+The housing time series contain serial correlation.
+
+Therefore, Newey-West robust standard errors are used for the final
+statistical inference.
+
+```{r analysis2-newey-west}
+analysis2_robust <- bind_rows(
+
+  nw_tidy(
+    model_nz,
+    "NZ housing market"
+  ),
+
+  nw_tidy(
+    model_rate,
+    "Mortgage rate"
+  ),
+
+  nw_tidy(
+    model_credit,
+    "Credit growth"
+  ),
+
+  nw_tidy(
+    main_model,
+    "Combined model"
+  )
+) %>%
+  mutate(
+    term = dplyr::recode(
+      term,
+      "(Intercept)" =
+        "Intercept",
+
+      "NZ_Price_YoY" =
+        "NZ house-price growth",
+
+      "Mortgage1Y_Lag6" =
+        "1-year mortgage rate (6m lag)",
+
+      "Migration_Lag6" =
+        "Net migration change (6m lag)",
+
+      "LVRGrowth_Lag6" =
+        "Credit growth (6m lag)",
+
+      "Consents_Lag12" =
+        "Dwelling consents growth (12m lag)",
+
+      "SalesGrowth_Lag1" =
+        "Sales growth (1m lag)",
+
+      "BrightLine" =
+        "Bright-Line period"
+    )
+  )
+
+kable(
+  analysis2_robust,
+  digits = 4,
+  col.names = c(
+    "Model",
+    "Variable",
+    "Estimate",
+    "Robust SE",
+    "t-statistic",
+    "p-value"
+  ),
+  caption =
+    "Newey-West Robust Results for Canterbury House-Price Growth"
+)
+```
+
+### Main results
+
+The strongest and most consistent result was the relationship between
+Canterbury and the wider New Zealand housing market.
+
+In the combined model, New Zealand house-price growth had an estimated
+coefficient of approximately:
+
+**0.706**
+
+with:
+
+**p < 0.001**.
+
+This means that, holding the other included variables constant, a
+one percentage-point increase in annual New Zealand house-price growth
+was associated with approximately **0.71 percentage points higher
+Canterbury house-price growth**.
+
+The combined model produced approximately:
+
+**R² = 0.823**
+
+and:
+
+**Adjusted R² = 0.811**.
+
+Mortgage rates showed a significant negative relationship when analysed
+alone.
+
+The standalone six-month-lagged mortgage-rate coefficient was
+approximately:
+
+**-4.10**
+
+with:
+
+**p = 0.026**.
+
+Credit growth also displayed a significant positive standalone
+association.
+
+However, these relationships weakened after national housing conditions
+and the other variables were controlled for.
+
+This suggests that Canterbury's housing market is strongly connected to
+the broader New Zealand housing cycle.
+
+---
+
+## 4.7 Final diagnostics
+
+Only the diagnostics required to justify the final regression inference
+are retained.
+
+```{r analysis2-diagnostics}
+bg_main <- bgtest(
+  main_model,
+  order = 12
+)
+
+vif_main <- car::vif(
+  main_model
+)
+
+bp_main <- bptest(
+  main_model
+)
+
+bg_main
+
+vif_main
+
+bp_main
+```
+
+### Diagnostic interpretation
+
+The Breusch-Godfrey test identified significant residual serial
+correlation:
+
+**p < 0.001**.
+
+This supports the use of Newey-West robust standard errors.
+
+The largest VIF values were approximately **4.6**, indicating moderate
+but not severe multicollinearity.
+
+The Breusch-Pagan test produced:
+
+**p = 0.225**.
+
+Therefore, there was no significant evidence of heteroskedasticity in
+the combined model.
+
+---
+
+# 5. Analysis 3 — House Prices, Rents and Income
+
+## 5.1 Purpose
+
+This analysis examines whether household incomes and rents kept pace
+with Canterbury house prices.
+
+It connects housing-market movements more directly to household
+affordability.
+
+---
+
+## 5.2 Monthly data
+
+```{r analysis3-prepare}
+analysis3_monthly <- analysis2 %>%
+  select(
+    Date,
+    Year,
+    Canterbury_Price,
+    NZ_Price,
+    Canterbury_Rent,
+    NZ_Rent,
+    Canterbury_Income,
+    NZ_Income
+  ) %>%
+  mutate(
+    Canterbury_Price_YoY =
+      100 * (
+        Canterbury_Price /
+          lag(
+            Canterbury_Price,
+            12
+          ) - 1
+      ),
+
+    Canterbury_Rent_YoY =
+      100 * (
+        Canterbury_Rent /
+          lag(
+            Canterbury_Rent,
+            12
+          ) - 1
+      ),
+
+    PriceGrowth_Lag12 =
+      lag(
+        Canterbury_Price_YoY,
+        12
+      ),
+
+    Period =
+      case_when(
+        Year <= 2019 ~
+          "2015-2019",
+
+        Year <= 2022 ~
+          "2020-2022",
+
+        TRUE ~
+          "2023 onwards"
+      ),
+
+    Period =
+      factor(
+        Period,
+        levels = c(
+          "2015-2019",
+          "2020-2022",
+          "2023 onwards"
+        )
+      )
+  )
+```
+
+---
+
+## 5.3 Annual prices, rents and income
+
+Income is available annually rather than monthly.
+
+Missing monthly values are not artificially interpolated.
+
+```{r analysis3-annual}
+analysis3_annual <- analysis3_monthly %>%
+  group_by(
+    Year
+  ) %>%
+  summarise(
+    Canterbury_Price =
+      median(
+        Canterbury_Price,
+        na.rm = TRUE
+      ),
+
+    NZ_Price =
+      median(
+        NZ_Price,
+        na.rm = TRUE
+      ),
+
+    Canterbury_Rent =
+      median(
+        Canterbury_Rent,
+        na.rm = TRUE
+      ),
+
+    NZ_Rent =
+      median(
+        NZ_Rent,
+        na.rm = TRUE
+      ),
+
+    Canterbury_Income =
+      first_non_missing(
+        Canterbury_Income
+      ),
+
+    NZ_Income =
+      first_non_missing(
+        NZ_Income
+      ),
+
+    .groups = "drop"
+  )
+```
+
+---
+
+## 5.4 Indexed house prices, rents and income
+
+```{r analysis3-index}
+base_year <- min(
+  analysis3_annual$Year,
+  na.rm = TRUE
+)
+
+index_base <- analysis3_annual %>%
+  filter(
+    Year == base_year
+  )
+
+analysis3_index <- analysis3_annual %>%
+  mutate(
+    House_Prices =
+      100 *
+      Canterbury_Price /
+      index_base$Canterbury_Price,
+
+    Rents =
+      100 *
+      Canterbury_Rent /
+      index_base$Canterbury_Rent,
+
+    Income =
+      100 *
+      Canterbury_Income /
+      index_base$Canterbury_Income
+  ) %>%
+  select(
+    Year,
+    House_Prices,
+    Rents,
+    Income
+  ) %>%
+  pivot_longer(
+    -Year,
+    names_to = "Measure",
+    values_to = "Index"
+  )
+
+ggplot(
+  analysis3_index,
+  aes(
+    x = Year,
+    y = Index,
+    colour = Measure
+  )
+) +
+  geom_line(
+    linewidth = 1.1,
+    na.rm = TRUE
+  ) +
+  geom_point(
+    size = 2,
+    na.rm = TRUE
+  ) +
+  labs(
+    title =
+      "Canterbury House Prices, Rents and Income",
+    subtitle =
+      "Indexed comparison: first available observation = 100",
+    x = "Year",
+    y = "Index",
+    colour = NULL
+  ) +
+  theme_minimal(
+    base_size = 13
+  ) +
+  theme(
+    legend.position = "bottom"
+  )
+```
+
+---
+
+## 5.5 House-price-to-income proxy
+
+This is a separate measure from the official house value-to-income
+multiple used in Analysis 1.
+
+```{r analysis3-price-income}
+price_income_table <- analysis3_annual %>%
+  filter(
+    !is.na(
+      Canterbury_Income
+    ),
+    !is.na(
+      NZ_Income
+    )
+  ) %>%
+  mutate(
+    Canterbury_PriceIncome =
+      Canterbury_Price /
+      Canterbury_Income,
+
+    NZ_PriceIncome =
+      NZ_Price /
+      NZ_Income
+  )
+
+kable(
+  price_income_table %>%
+    select(
+      Year,
+      Canterbury_Price,
+      Canterbury_Income,
+      Canterbury_PriceIncome,
+      NZ_Price,
+      NZ_Income,
+      NZ_PriceIncome
+    ),
+  digits = 2,
+  col.names = c(
+    "Year",
+    "Canterbury House Price ($)",
+    "Canterbury Income ($)",
+    "Canterbury Price-to-Income",
+    "NZ House Price ($)",
+    "NZ Income ($)",
+    "NZ Price-to-Income"
+  ),
+  caption =
+    "House-Price-to-Income Proxy"
+)
+```
+
+---
+
+## 5.6 Canterbury price-to-income trend
+
+```{r analysis3-price-income-plot}
+ggplot(
+  price_income_table,
+  aes(
+    x = Year,
+    y = Canterbury_PriceIncome
+  )
+) +
+  geom_line(
+    colour = "#D55E00",
+    linewidth = 1.1
+  ) +
+  geom_point(
+    colour = "#D55E00",
+    size = 2.5
+  ) +
+  labs(
+    title =
+      "Canterbury House-Price-to-Income Proxy",
+    subtitle =
+      "Median sale price divided by mean Canterbury income",
+    x = "Year",
+    y =
+      "Price-to-income ratio"
+  ) +
+  theme_minimal(
+    base_size = 13
+  )
+```
+
+### Interpretation
+
+The Canterbury price-to-income proxy increased from approximately
+**7.90 in 2020** to approximately **10.33 in 2022**.
+
+It subsequently declined to approximately **9.00 by 2025**.
+
+This indicates that purchase affordability deteriorated sharply during
+the 2020–2022 housing boom before partially improving.
+
+---
+
+## 5.7 House-price growth vs rent growth
+
+```{r analysis3-rent-price-plot}
+price_rent_growth <- analysis3_monthly %>%
+  select(
+    Date,
+
+    `House-price growth` =
+      Canterbury_Price_YoY,
+
+    `Rent growth` =
+      Canterbury_Rent_YoY
+  ) %>%
+  pivot_longer(
+    -Date,
+    names_to = "Measure",
+    values_to = "Growth"
+  )
+
+ggplot(
+  price_rent_growth,
+  aes(
+    x = Date,
+    y = Growth,
+    colour = Measure
+  )
+) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dashed",
+    colour = "grey50"
+  ) +
+  geom_line(
+    linewidth = 1
+  ) +
+  labs(
+    title =
+      "Canterbury House-Price Growth vs Rent Growth",
+    subtitle =
+      "Year-on-year percentage change",
+    x = NULL,
+    y = "Annual growth (%)",
+    colour = NULL
+  ) +
+  theme_minimal(
+    base_size = 13
+  ) +
+  theme(
+    legend.position = "bottom"
+  )
+```
+
+---
+
+## 5.8 Housing-market periods
+
+```{r analysis3-periods}
+period_summary <- analysis3_monthly %>%
+  group_by(
+    Period
+  ) %>%
+  summarise(
+    Mean_Price_Growth =
+      mean(
+        Canterbury_Price_YoY,
+        na.rm = TRUE
+      ),
+
+    Mean_Rent_Growth =
+      mean(
+        Canterbury_Rent_YoY,
+        na.rm = TRUE
+      ),
+
+    .groups = "drop"
+  )
+
+kable(
+  period_summary,
+  digits = 2,
+  col.names = c(
+    "Period",
+    "House-Price Growth (%)",
+    "Rent Growth (%)"
+  ),
+  caption =
+    "Canterbury Housing Growth by Period"
+)
+```
+
+### Interpretation
+
+Average Canterbury house-price growth was approximately:
+
+- **1.95% during 2015–2019**
+- **14.82% during 2020–2022**
+- **1.47% from 2023 onward**
+
+Average rent growth was approximately:
+
+- **-0.16% during 2015–2019**
+- **6.60% during 2020–2022**
+- **4.83% from 2023 onward**
+
+The nature of affordability pressure therefore changed over time.
+
+During 2020–2022, rapidly rising purchase prices were the dominant
+problem.
+
+After the housing boom, house-price growth slowed substantially while
+rental growth remained elevated.
+
+---
+
+## 5.9 Rent-growth models
+
+To keep the final analysis concise, only the immediate relationship and
+the strongest individual lag relationship are retained.
+
+```{r analysis3-models}
+rent_current_model <- lm(
+  Canterbury_Rent_YoY ~
+    Canterbury_Price_YoY,
+  data = analysis3_monthly
+)
+
+rent_lag12_model <- lm(
+  Canterbury_Rent_YoY ~
+    PriceGrowth_Lag12,
+  data = analysis3_monthly
+)
+```
+
+---
+
+## 5.10 Newey-West rent results
+
+```{r analysis3-newey-west}
+analysis3_robust <- bind_rows(
+
+  nw_tidy(
+    rent_current_model,
+    "Current relationship"
+  ),
+
+  nw_tidy(
+    rent_lag12_model,
+    "12-month lag"
+  )
+) %>%
+  mutate(
+    term = dplyr::recode(
+      term,
+      "(Intercept)" =
+        "Intercept",
+
+      "Canterbury_Price_YoY" =
+        "Current house-price growth",
+
+      "PriceGrowth_Lag12" =
+        "House-price growth (12m lag)"
+    )
+  )
+
+kable(
+  analysis3_robust,
+  digits = 4,
+  col.names = c(
+    "Model",
+    "Variable",
+    "Estimate",
+    "Robust SE",
+    "t-statistic",
+    "p-value"
+  ),
+  caption =
+    "Newey-West Results for Canterbury Rent Growth"
+)
+```
+
+### Interpretation
+
+The same-period relationship between house-price growth and rent growth
+was positive but only weakly significant after correcting for serial
+correlation.
+
+The 12-month lag produced a stronger result.
+
+The estimated 12-month coefficient was approximately:
+
+**0.217**
+
+with:
+
+**p = 0.0005**.
+
+This suggests that a **10 percentage-point increase in annual
+house-price growth was associated with approximately 2.17 percentage
+points higher annual rent growth one year later**.
+
+This relationship should not be interpreted as proof that rising house
+prices directly cause higher rents.
+
+---
+
+# 6. Overall Findings
+
+The analysis produces three main findings.
+
+First, Canterbury has historically been more affordable than New Zealand
+overall.
+
+Both Canterbury's house value-to-income multiple and mortgage-payment
+burden were significantly lower than the corresponding New Zealand
+measures.
+
+Second, Canterbury's housing market remains strongly connected to the
+national housing cycle.
+
+National house-price growth was the strongest and most consistent
+predictor in the final Canterbury house-price model.
+
+Mortgage rates and credit conditions displayed meaningful standalone
+relationships with Canterbury price growth, but these relationships
+weakened once broader national housing conditions were controlled for.
+
+Third, affordability deteriorated sharply during the 2020–2022 housing
+boom.
+
+House prices increased substantially faster than household income.
+
+Although purchase-price growth later slowed, rental growth remained
+relatively elevated.
+
+The regression evidence also suggests that rent growth may respond to
+earlier housing-market conditions with a delay.
+
+---
+
+# 7. Limitations
+
+The analysis has several limitations.
+
+The data are observational, so the statistical relationships cannot be
+interpreted as causal effects.
+
+Some explanatory variables, including migration and monetary-policy
+variables, are measured nationally rather than specifically for
+Canterbury.
+
+Time-series models displayed serial correlation.
+
+Newey-West robust standard errors were therefore used for final
+statistical inference.
+
+Moderate multicollinearity was present between some explanatory
+variables, although VIF values remained below approximately five.
+
+The Bright-Line variable represents different policy regimes over time
+and should not be interpreted as an isolated causal estimate of the
+policy's effect.
+
+Dwelling consents represent approvals rather than completed housing
+supply.
+
+Finally, Canterbury income is available at a lower frequency than the
+monthly housing-market measures.
+
+Income was therefore analysed annually rather than artificially filling
+missing monthly observations.
+
+---
+
+# 8. Conclusion
+
+Canterbury has historically maintained a housing-affordability advantage
+relative to New Zealand overall.
+
+However, Canterbury still experienced substantial affordability
+deterioration during the early-2020s housing boom.
+
+House prices increased much faster than household income during
+2020–2022.
+
+Although house-price growth subsequently slowed, rental costs continued
+to rise relatively strongly.
+
+Canterbury house-price movements are closely connected to the wider New
+Zealand housing market, while borrowing conditions, credit availability,
+migration, housing supply and market activity provide additional
+context.
+
+Overall, Canterbury housing affordability appears to reflect a
+combination of national housing-market conditions, household income,
+financing costs, housing supply and rental-market pressures rather than
+a single explanatory factor.
+```
