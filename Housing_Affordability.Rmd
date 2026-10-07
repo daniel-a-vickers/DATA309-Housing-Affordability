@@ -49,7 +49,9 @@ df <- raw %>%
     vol_nz        = `Volume Sold`,
     vol_cant      = `Volume Sold Canterbury`,
     net_mig_nz    = `Net migration`,
-    bright_line   = `Bright Line Test Period`   # holding period in force (years)
+    bright_line   = `Bright Line Test Period`,   # holding period in force (years)
+    invent_nz     = `Weeks of Inventory`,
+    invent_cant   = `Weeks of Inventory Canterbury`
   )
 
 stopifnot(all(as.numeric(diff(df$date)) %in% 28:31))   # monthly grid, no gaps
@@ -93,7 +95,10 @@ df <- df %>%
     vol_12m_nz   = rollsumr(vol_nz,   12, fill = NA),
     vol_12m_cant = rollsumr(vol_cant, 12, fill = NA),
     vol_yoy_nz   = 100 * (vol_12m_nz   / dplyr::lag(vol_12m_nz, 12)   - 1),
-    vol_yoy_cant = 100 * (vol_12m_cant / dplyr::lag(vol_12m_cant, 12) - 1)
+    vol_yoy_cant = 100 * (vol_12m_cant / dplyr::lag(vol_12m_cant, 12) - 1),
+    
+    invent_nz = invent_nz,
+    invent_cant = invent_cant
   )
 ```
 
@@ -473,9 +478,9 @@ errors throughout.
 # Stack the two regions under common variable names so one formula serves both
 model_data <- bind_rows(
   df %>% transmute(date, region = "NZ", price = nz_price, consents = consents_per1000_nz,
-                   rate_2y, lvr_share, net_mig_nz_k, unemp, bright_line),
+                   rate_2y, lvr_share, net_mig_nz_k, unemp, bright_line, inventory = invent_nz),
   df %>% transmute(date, region = "Canterbury", price = cant_price, consents = consents_per1000_cant,
-                   rate_2y, lvr_share, net_mig_nz_k, unemp, bright_line)
+                   rate_2y, lvr_share, net_mig_nz_k, unemp, bright_line, inventory = invent_cant)
 ) %>%
   mutate(post_covid = as.integer(date >= covid))
 
@@ -485,10 +490,10 @@ if (common_window) {   # full-sample models on the months where both regions hav
   model_data <- filter(model_data, date %in% complete_dates)
 }
 
-f_pre  <- log(price) ~ rate_2y + lvr_share + net_mig_nz_k + consents + unemp + bright_line
+f_pre  <- log(price) ~ rate_2y + lvr_share + net_mig_nz_k + consents + unemp + bright_line + inventory
 # Interactions on rate and migration let those slopes change after COVID; the interaction
 # p-value tests a break, and post-COVID slope = main effect + interaction
-f_full <- update(f_pre, . ~ . + post_covid + rate_2y:post_covid + net_mig_nz_k:post_covid)
+f_full <- update(f_pre, . ~ . + post_covid + rate_2y:post_covid + net_mig_nz_k:post_covid + inventory:post_covid)
 
 fit_one <- function(region_name, sample) {
   dat <- filter(model_data, region == region_name)
@@ -554,147 +559,254 @@ results %>%
   pivot_wider(names_from = model, values_from = display, values_fill = "")
 ```
 
-
 ```{r}
-## ---- chunk 12d: rent-to-income (RTI) descriptive treatment ----------------
-# rti_nz / rti_cant already exist in df (chunk 2-ish: rti_nz = nz_rent*52/
-# income_nz*100) and already appear in the combined outcomes facet chart and
-# the pre/post-COVID means table -- but unlike PTI, RTI has never had its
-# own standalone trend chart or a rent-vs-income decomposition. This chunk
-# gives it the same descriptive treatment chunk 12b/12c gave PTI, purely
-# descriptive (no regression/driver modelling -- rent-to-income is kept out
-# of the Q1/Q2 driver regressions since rent itself would need its own
-# demand/supply driver model, which is out of scope here).
-#
-# Also adds LOWER-QUARTILE RTI alongside the median, using `Lower Quartile
-# Rent` / `Canterbury Lower Quartile Rent` (already in the raw spreadsheet,
-# no new sourcing needed). Median RTI tells you about the "typical" renter;
-# lower-quartile RTI is a much better proxy for how stretched the most
-# vulnerable/lowest-cost renters are, since affordability pressure usually
-# bites hardest at the bottom of the market. Note: income is NOT split by
-# quartile (no such series available), so lower-quartile RTI pairs
-# lower-quartile RENT against the SAME (median/mean per-person) income used
-# elsewhere -- flagged as a limitation, not a true "low-income renter"
-# ratio, just a bottom-of-market rent proxy against typical income.
-
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(scales)
 
 covid <- as.Date("2020-03-01")
 
-## ---- build lower-quartile RTI (mirrors how rti_nz / rti_cant were built) --
-df <- df %>%
+make_stock_flow_panel <- function(data, region_name, consents_col, invent_col) {
+  d <- data %>%
+    transmute(date,
+              consents  = .data[[consents_col]],
+              inventory = .data[[invent_col]]) %>%
+    filter(!is.na(consents) | !is.na(inventory))
+
+  rng_consents  <- range(d$consents,  na.rm = TRUE)
+  rng_inventory <- range(d$inventory, na.rm = TRUE)
+  scale_factor  <- diff(rng_consents) / diff(rng_inventory)
+  offset        <- rng_consents[1] - rng_inventory[1] * scale_factor
+
+  d <- d %>% mutate(inventory_scaled = inventory * scale_factor + offset)
+
+  ggplot(d, aes(date)) +
+    geom_line(aes(y = consents, colour = "Consents per 1,000 (flow)"), linewidth = 0.7) +
+    geom_line(aes(y = inventory_scaled, colour = "Weeks of inventory (stock)"), linewidth = 0.7) +
+    geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40") +
+    scale_y_continuous(
+      name = "Consents per 1,000 people",
+      sec.axis = sec_axis(~ (. - offset) / scale_factor, name = "Weeks of inventory")
+    ) +
+    scale_colour_manual(values = c("Consents per 1,000 (flow)" = "#1b9e77",
+                                    "Weeks of inventory (stock)" = "#d95f02")) +
+    labs(x = NULL, colour = NULL, title = region_name) +
+    theme_minimal() +
+    theme(legend.position = "top")
+}
+
+p_nz   <- make_stock_flow_panel(df, "NZ",         "consents_per1000_nz",   "invent_nz")
+p_cant <- make_stock_flow_panel(df, "Canterbury", "consents_per1000_cant", "invent_cant")
+
+p_nz
+p_cant
+
+```
+
+```{r}
+## ---- chunk 15: coefficient plot for the driver regressions ----------------
+# Charts the regression results directly, rather than just tabulating them.
+# A dot-and-whisker (coefficient) plot is used, not a scatter of the raw
+# data, because these are MULTIPLE regression models (6-11 regressors each)
+# -- there's no single x/y pair to scatter. A coefficient plot is the
+# standard way to visualise multi-regressor OLS output: each term gets a
+# point estimate + 95% CI whisker, faceted/grouped so you can compare the
+# same term's estimate and precision across all 4 models at once.
+#
+# This directly visualises everything already established in discussion:
+# sign flips (rate_2y, inventory), which terms are consistently robust
+# (unemp) vs unstable across specifications, and the NZ vs Canterbury
+# divergence -- in one chart instead of four separate tables.
+#
+# Reuses `results` (built by hac_tidy() + imap_dfr(fits, hac_tidy) in the
+# models chunk) directly -- no need to refit anything. CI built from the
+# already-computed HAC std.error (95% CI = estimate +/- 1.96*std.error),
+# consistent with the Newey-West SEs used throughout the rest of the report.
+
+library(dplyr)
+library(ggplot2)
+library(stringr)
+
+## ---- build CI + tidy labels from the existing `results` tibble -----------
+coef_plot_data <- results %>%
+  filter(term != "(Intercept)") %>%     # intercept isn't economically interesting here
   mutate(
-    rti_lq_nz   = nz_low_rent             * 52 / income_nz   * 100,
-    rti_lq_cant = cant_low_rent   * 52 / income_cant * 100
+    conf.low  = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error,
+    sample    = if_else(str_detect(model, "pre-COVID"), "Pre-COVID", "Full sample"),
+    region    = if_else(str_detect(model, "Canterbury"), "Canterbury", "NZ"),
+    sample    = factor(sample, levels = c("Pre-COVID", "Full sample"))
   )
 
-## ---- standalone RTI trend chart, NZ vs Canterbury, median + lower-quartile
-rti_long <- df %>%
-  select(date,
-         `NZ - median`             = rti_nz,
-         `Canterbury - median`     = rti_cant,
-         `NZ - lower quartile`     = rti_lq_nz,
-         `Canterbury - lower quartile` = rti_lq_cant) %>%
-  pivot_longer(-date, names_to = "series", values_to = "rti") %>%
-  filter(!is.na(rti)) %>%
-  separate(series, into = c("region", "measure"), sep = " - ")
+## ---- order terms sensibly (main effects first, then their interactions) --
+term_order <- c("rate_2y", "rate_2y:post_covid",
+                 "lvr_share",
+                 "net_mig_nz_k", "net_mig_nz_k:post_covid",
+                 "consents",
+                 "inventory", "inventory:post_covid",
+                 "unemp", "bright_line", "post_covid")
+coef_plot_data <- coef_plot_data %>%
+  mutate(term = factor(term, levels = rev(term_order)))
 
-ggplot(rti_long, aes(date, rti, colour = region, linetype = measure)) +
-  geom_line(linewidth = 0.7) +
-  geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40") +
-  labs(x = NULL, y = "Rent-to-income (%, annualised)", colour = NULL, linetype = NULL,
-       title = "Rent-to-income ratio: Canterbury vs NZ, median vs lower-quartile rent",
-       caption = paste("Rent = weekly rent x 52. Income interpolated linearly from annual data, same (median/mean) income series used for both rent measures.",
-                        "Dashed line: March 2020.", sep = "\n")) +
+## ---- plot: one point + whisker per term, coloured by region, faceted by sample
+ggplot(coef_plot_data, aes(x = estimate, y = term, colour = region)) +
+  geom_vline(xintercept = 0, colour = "grey50", linetype = "dashed") +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
+                   position = position_dodge(width = 0.5), size = 0.4) +
+  facet_wrap(~ sample, scales = "free_x") +
+  scale_colour_manual(values = c("NZ" = "#1b9e77", "Canterbury" = "#d95f02")) +
+  labs(x = "Coefficient estimate (95% CI, HAC/Newey-West SEs)", y = NULL,
+       colour = NULL,
+       title = "Driver regression coefficients: NZ vs Canterbury, pre-COVID vs full sample",
+       caption = "Dashed line = zero effect. Intercept omitted. Whiskers crossing zero indicate a non-significant term at 5%.") +
+  theme_minimal() +
+  theme(legend.position = "top", strip.text = element_text(face = "bold"))
+
+## ---- optional companion: actual vs fitted price, per region --------------
+# Useful alongside the coefficient plot to SHOW model fit quality, not just
+# state the R-squared -- particularly for Canterbury, where R-squared is
+# much lower (0.58-0.61 pre-COVID) than NZ's (0.92+). Seeing the fitted
+# line visibly track the actual series more loosely for Canterbury makes
+# that gap concrete rather than just a number in a table.
+
+library(broom)
+library(purrr)
+library(tidyr)
+
+fitted_data <- imap_dfr(fits, function(fit, model_name) {
+  broom::augment(fit) %>%
+    mutate(model = model_name,
+           region = if_else(str_detect(model_name, "Canterbury"), "Canterbury", "NZ"),
+           sample = if_else(str_detect(model_name, "pre-COVID"), "Pre-COVID", "Full sample"))
+})
+
+# augment() doesn't carry `date` through automatically -- re-attach it by
+# row order within each model's own data (safe since no rows are reordered
+# by lm()/augment()).
+fitted_data <- fitted_data %>%
+  group_by(model) %>%
+  mutate(date = model_data %>%
+           filter(region == first(region),
+                  if (first(sample) == "Pre-COVID") date < covid else TRUE) %>%
+           pull(date)) %>%
+  ungroup()
+
+ggplot(fitted_data, aes(date)) +
+  geom_line(aes(y = `log(price)`, colour = "Actual"), linewidth = 0.6) +
+  geom_line(aes(y = .fitted, colour = "Fitted"), linewidth = 0.6, linetype = "dashed") +
+  facet_grid(region ~ sample, scales = "free") +
+  scale_colour_manual(values = c("Actual" = "black", "Fitted" = "#1b9e77")) +
+  labs(x = NULL, y = "log(price)", colour = NULL,
+       title = "Actual vs fitted log(price): model fit by region and sample") +
   theme_minimal() + theme(legend.position = "top")
 
-## ---- pre/post-COVID RTI summary (mean, min, max) ---------------------------
-rti_summary <- df %>%
-  filter(!is.na(rti_nz) | !is.na(rti_cant) | !is.na(rti_lq_nz) | !is.na(rti_lq_cant)) %>%
-  mutate(period = if_else(date < covid, "Pre-COVID (to Feb 2020)", "Mar 2020 onward")) %>%
-  group_by(period) %>%
-  summarise(
-    NZ_median_mean         = round(mean(rti_nz,     na.rm = TRUE), 1),
-    NZ_median_min          = round(min(rti_nz,      na.rm = TRUE), 1),
-    NZ_median_max          = round(max(rti_nz,      na.rm = TRUE), 1),
-    Canterbury_median_mean = round(mean(rti_cant,   na.rm = TRUE), 1),
-    Canterbury_median_min  = round(min(rti_cant,    na.rm = TRUE), 1),
-    Canterbury_median_max  = round(max(rti_cant,    na.rm = TRUE), 1),
-    NZ_LQ_mean             = round(mean(rti_lq_nz,   na.rm = TRUE), 1),
-    NZ_LQ_min              = round(min(rti_lq_nz,    na.rm = TRUE), 1),
-    NZ_LQ_max              = round(max(rti_lq_nz,    na.rm = TRUE), 1),
-    Canterbury_LQ_mean     = round(mean(rti_lq_cant, na.rm = TRUE), 1),
-    Canterbury_LQ_min      = round(min(rti_lq_cant,  na.rm = TRUE), 1),
-    Canterbury_LQ_max      = round(max(rti_lq_cant,  na.rm = TRUE), 1),
-    .groups = "drop")
+```
 
-rti_summary
+```{r}
+f_split <- log(price) ~ rate_2y + lvr_share + net_mig_nz_k + consents + unemp + bright_line
 
-## ---- chunk 12e: rent vs income decomposition (exact, same logic as 12b) --
-# log(RTI) = log(rent) - log(income), exactly analogous to the PTI
-# decomposition (log(PTI) = log(price) - log(income)) -- two components,
-# sums to the total with no residual. Reuses `windows` / `anchors` from
-# chunk 11, same as the PTI version. Median rent only here (lower-quartile
-# decomposition would just repeat the same income contribution against a
-# different rent series -- shown in the trend chart/summary table above
-# instead, to avoid a redundant, near-identical set of bar charts).
+split_fit <- function(region_name, period) {
+  dat <- model_data %>%
+    filter(region == region_name, if (period == "pre") date < covid else date >= covid) %>%
+    drop_na(price, rate_2y, lvr_share, net_mig_nz_k, consents, unemp, bright_line)
+  do.call(lm, list(f_split, data = dat))
+}
 
-dl_rti <- df %>%
-  filter(date %in% anchors) %>%
-  transmute(date,
-            NZ_rent            = log(nz_rent),
-            NZ_income          = -log(income_nz),
-            Canterbury_rent    = log(cant_rent),
-            Canterbury_income  = -log(income_cant)) %>%
-  pivot_longer(-date, names_to = c("region", "component"), names_sep = "_")
+grid <- expand_grid(region = c("NZ", "Canterbury"), period = c("pre", "post"))
+split_fits <- pmap(grid, ~ split_fit(..1, ..2)) %>%
+  set_names(paste0(grid$region, " (", grid$period, "-COVID)"))
 
-start_rti <- dl_rti %>% rename(from = date, v0 = value)
-end_rti   <- dl_rti %>% rename(to   = date, v1 = value)
+results_split <- imap_dfr(split_fits, hac_tidy) %>%
+  mutate(display = paste0(sprintf("%.4f", estimate), sig_stars(p.value)))
 
-contrib_rti <- windows %>%
-  inner_join(start_rti, by = "from") %>%
-  inner_join(end_rti, by = c("to", "region", "component")) %>%
-  mutate(contribution = 100 * (v1 - v0),
-         window    = factor(window, levels = windows$window),
-         component = factor(component, levels = c("rent", "income")))
+# Coefficients side by side: pre vs post
+terms_order <- c("rate_2y", "lvr_share", "net_mig_nz_k", "consents", "unemp", "bright_line")
+results_split %>%
+  filter(term != "(Intercept)") %>%
+  separate(model, into = c("region", "period"), sep = " \\(") %>%
+  mutate(period = str_remove(period, "-COVID\\)")) %>%
+  select(region, term, period, display) %>%
+  pivot_wider(names_from = period, values_from = display) %>%
+  arrange(region, match(term, terms_order)) %>%
+  select(region, term, pre, post)
 
-totals_rti <- contrib_rti %>%
-  group_by(window, region) %>%
-  summarise(total = sum(contribution), .groups = "drop")
+# Fit summary
+results_split %>% distinct(model, r.squared, n) %>% mutate(r.squared = round(r.squared, 3))
 
-# check: contributions must sum to the direct change in log RTI
-direct_rti <- windows %>%
-  inner_join(df %>% select(from = date, nz0 = rti_nz, c0 = rti_cant), by = "from") %>%
-  inner_join(df %>% select(to = date, nz1 = rti_nz, c1 = rti_cant), by = "to") %>%
-  transmute(window = factor(window, levels = windows$window),
-            NZ = 100 * log(nz1 / nz0), Canterbury = 100 * log(c1 / c0)) %>%
-  pivot_longer(-window, names_to = "region", values_to = "direct")
-chk_rti <- left_join(totals_rti, direct_rti, by = c("window", "region"))
-stopifnot(all(abs(chk_rti$total - chk_rti$direct) < 1e-8))
+# Did the relationships change? HAC Wald test that every slope is equal pre vs post
+hac <- function(x) NeweyWest(x, prewhite = FALSE, adjust = TRUE)
+map_dfr(c("NZ", "Canterbury"), function(r) {
+  dat <- model_data %>% filter(region == r) %>%
+    drop_na(price, rate_2y, lvr_share, net_mig_nz_k, consents, unemp, bright_line)
+  pooled <- do.call(lm, list(f_split, data = dat))
+  broken <- do.call(lm, list(update(f_split, . ~ . + post_covid * (rate_2y + lvr_share + net_mig_nz_k +
+                                                                      consents + unemp + bright_line)), data = dat))
+  w <- waldtest(broken, pooled, vcov = hac)
+  tibble(region = r, F_stat = round(w$F[2], 2), p_value = round(w$`Pr(>F)`[2], 4))
+})
+```
 
-contrib_rti %>%
-  select(window, region, component, contribution) %>%
-  pivot_wider(names_from = component, values_from = contribution) %>%
-  left_join(totals_rti, by = c("window", "region")) %>%
-  mutate(across(where(is.numeric), ~ round(.x, 1))) %>%
-  arrange(region, window)
 
-## ---- chunk 12f: plot -------------------------------------------------------
-ggplot(contrib_rti, aes(window, contribution, fill = component)) +
-  geom_col(width = 0.65) +
-  geom_point(data = totals_rti, aes(y = total, fill = NULL), shape = 18, size = 3,
-             show.legend = FALSE) +
-  geom_hline(yintercept = 0, colour = "grey40") +
-  facet_wrap(~ region) +
-  scale_fill_manual(values = c(rent = "#d95f02", income = "#7570b3"),
-                    labels = c("Rent", "Income")) +
-  labs(x = NULL, y = "Contribution to change in rent-to-income ratio (log points x100)",
-       fill = NULL,
-       caption = "Diamond = total change in log rent-to-income ratio (median rent). Per-person income.") +
-  theme_minimal() + theme(legend.position = "top",
-                          axis.text.x = element_text(angle = 20, hjust = 1))
 
+```{r}
+panel_levels <- c("NZ (pre-COVID)", "NZ (post-COVID)", "Canterbury (pre-COVID)", "Canterbury (post-COVID)")
+
+fit_df <- pmap_dfr(grid, function(region, period) {
+  reg <- region; per <- period
+  fit <- split_fits[[paste0(reg, " (", per, "-COVID)")]]
+  dat <- model_data %>%
+    filter(region == reg, if (per == "pre") date < covid else date >= covid) %>%
+    drop_na(price, rate_2y, lvr_share, net_mig_nz_k, consents, unemp, bright_line)
+
+  tibble(date = dat$date, Actual = dat$price / 1000, Fitted = exp(predict(fit, newdata = dat)) / 1000,
+         panel = sprintf("%s, R\u00b2 = %.2f", paste0(reg, " (", per, "-COVID)"), summary(fit)$r.squared),
+         order = match(paste0(reg, " (", per, "-COVID)"), panel_levels))
+}) %>%
+  mutate(panel = fct_reorder(panel, order)) %>%
+  pivot_longer(c(Actual, Fitted), names_to = "series", values_to = "price_k")
+
+ggplot(fit_df, aes(date, price_k, colour = series, linetype = series)) +
+  geom_line(linewidth = 0.8) +
+  facet_wrap(~ panel, scales = "free", ncol = 2) +
+  scale_colour_manual(values = c(Actual = "black", Fitted = "#d95f02")) +
+  scale_linetype_manual(values = c(Actual = "solid", Fitted = "dashed")) +
+  labs(x = NULL, y = "Median sale price ($000)", colour = NULL, linetype = NULL,
+       title = "Actual vs fitted median sale price, split pre- and post-COVID models",
+       caption = "In-sample fit: each model is fitted and evaluated on its own period, so this shows fit, not prediction.") +
+  theme_minimal() + theme(legend.position = "top")
+```
+
+```{r}
+f_split <- log(price) ~ rate_2y + lvr_share + net_mig_nz_k + consents + unemp + bright_line
+vars    <- c("price", "rate_2y", "lvr_share", "net_mig_nz_k", "consents", "unemp", "bright_line")
+
+# Fit on earlier months, predict a held-out final 12 months using the actual driver values,
+# and compare with a no-change forecast (last training-period price)
+holdout_test <- function(region_name, label, train_from, train_to, test_to) {
+  d  <- model_data %>% filter(region == region_name) %>% drop_na(all_of(vars))
+  tr <- filter(d, date >= train_from, date <= train_to)
+  te <- filter(d, date >  train_to,   date <= test_to)
+
+  pred   <- predict(lm(f_split, data = tr), newdata = te)
+  actual <- log(te$price)
+  naive  <- log(tail(tr$price, 1))
+
+  tibble(region = region_name, model = label, n_train = nrow(tr), n_test = nrow(te),
+         model_error = 100 * sqrt(mean((actual - pred)^2)),   # RMSE, log points x100
+         nochange_error = 100 * sqrt(mean((actual - naive)^2)),
+         bias = 100 * mean(actual - pred))                    # >0: model underpredicts
+}
+
+pre_test_end  <- covid %m-% months(1)                  # last pre-COVID month
+post_test_end <- max(model_data$date)                  # last month in the data
+
+map_dfr(c("NZ", "Canterbury"), function(r) {
+  bind_rows(
+    holdout_test(r, "Pre-COVID model",  min(model_data$date), pre_test_end %m-% months(12), pre_test_end),
+    holdout_test(r, "Post-COVID model", covid,                post_test_end %m-% months(12), post_test_end))
+}) %>%
+  mutate(relative_to_nochange = model_error / nochange_error,
+         across(where(is.numeric), ~ round(.x, 1)))
 ```
 
