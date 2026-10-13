@@ -316,6 +316,32 @@ pti$plot
 ```
 
 ```{r}
+dl_rti <- df %>%
+  filter(date %in% anchors) %>%
+  transmute(date,
+            NZ_rent            = log(nz_rent),
+            NZ_income          = -log(income_nz),
+            Canterbury_rent    = log(cant_rent),
+            Canterbury_income  = -log(income_cant)) %>%
+  pivot_longer(-date, names_to = c("region", "component"), names_sep = "_")
+
+start_rti <- dl_rti %>% rename(from = date, v0 = value)
+end_rti   <- dl_rti %>% rename(to   = date, v1 = value)
+
+contrib_rti <- windows %>%
+  inner_join(start_rti, by = "from") %>%
+  inner_join(end_rti, by = c("to", "region", "component")) %>%
+  mutate(contribution = 100 * (v1 - v0),
+         window    = factor(window, levels = windows$window),
+         component = factor(component, levels = c("rent", "income")))
+
+totals_rti <- contrib_rti %>%
+  group_by(window, region) %>%
+  summarise(total = sum(contribution), .groups = "drop")
+```
+
+
+```{r}
 ggplot(contrib_rti, aes(window, contribution, fill = component)) +
   geom_col(width = 0.65) +
   geom_point(data = totals_rti, aes(y = total, fill = NULL), shape = 18, size = 3,
