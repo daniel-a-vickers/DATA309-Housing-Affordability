@@ -1,7 +1,9 @@
 ---
-title: "Housing affordability: Canterbury vs NZ"
+title: 'Housing affordability: Canterbury vs NZ'
 output:
   html_document:
+    toc: true
+  word_document:
     toc: true
 ---
 
@@ -147,19 +149,28 @@ outcomes <- df %>%
   filter(!is.na(value)) %>%
   mutate(region  = if_else(region == "nz", "NZ", "Canterbury"),
          measure = factor(measure, levels = c("pti", "serv", "rti"),
-                          labels = c("Price-to-income (x)",
+                          labels = c("Price-to-income (no. of incomes)",
                                      "Mortgage payment (% of income, 2-yr rate)",
-                                     "Rent-to-income (%)")))
+                                     "Rent-to-income (% of income)")))
 
 ggplot(outcomes, aes(date, value, colour = region)) +
-  geom_line() +
-  geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40") +
+  geom_line(linewidth = 1) +
+  geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40", linewidth = 0.8) +
   facet_wrap(~ measure, scales = "free_y", ncol = 1) +
   labs(x = NULL, y = NULL, colour = NULL,
-       title = "Affordability: Canterbury vs NZ (per-person income)",
+       title = "Affordability: Canterbury vs NZ (mean per-person income)",
        caption = paste0("Dashed line: ", format(covid, "%B %Y"),
                         ". Income interpolated linearly from annual data.")) +
-  theme_minimal() + theme(legend.position = "top")
+  theme_minimal() + 
+  theme_minimal(base_size = 14) + # Increases overall default text size
+  theme(
+    legend.position = "top",
+    plot.title = element_text(size = 18, face = "bold"), # Makes the title larger and bold
+    axis.text = element_text(size = 12),                 # Makes axis tick labels larger
+    strip.text = element_text(size = 14, face = "bold"), # Makes facet headers larger
+    legend.text = element_text(size = 12),               # Makes legend labels larger
+    plot.caption = element_text(size = 10)               # Adjusts caption size
+  )
 ```
 
 ```{r drivers, fig.height = 8}
@@ -303,6 +314,23 @@ pti <- decomp_report(
 pti$table
 pti$plot
 ```
+
+```{r}
+ggplot(contrib_rti, aes(window, contribution, fill = component)) +
+  geom_col(width = 0.65) +
+  geom_point(data = totals_rti, aes(y = total, fill = NULL), shape = 18, size = 3,
+             show.legend = FALSE) +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  facet_wrap(~ region) +
+  scale_fill_manual(values = c(rent = "#d95f02", income = "#7570b3"),
+                    labels = c("Rent", "Income")) +
+  labs(x = NULL, y = "Contribution to change in rent-to-income ratio (log points x100)",
+       fill = NULL,
+       caption = "Diamond = total change in log rent-to-income ratio (median rent). Per-person income.") +
+  theme_minimal() + theme(legend.position = "top",
+                          axis.text.x = element_text(angle = 20, hjust = 1))
+```
+
 
 ## COVID: actual vs pre-COVID trend
 
@@ -747,6 +775,28 @@ map_dfr(c("NZ", "Canterbury"), function(r) {
 })
 ```
 
+```{r}
+for (m in names(split_fits)) {
+  r <- filter(results_split, model == m)
+  
+  cat(sprintf("\n#### %s (R-squared = %.3f, n = %d)\n\n", m, r$r.squared[1], r$n[1]))
+  
+  r %>%
+    transmute(Term = term, 
+              Estimate = display,
+              `Std.Error` = sprintf("%.4f", std.error),
+              `t-stat` = sprintf("%.2f", statistic),
+              `p-value` = sprintf("%.3f", p.value)) %>%
+    knitr::kable(align = "lrrrr") %>%
+    print()
+  
+  cat("\n")
+}
+
+cat("Significance: *** p<0.001, ** p<0.01, * p<0.05, . p<0.1\n")
+```
+
+
 
 
 ```{r}
@@ -809,4 +859,6 @@ map_dfr(c("NZ", "Canterbury"), function(r) {
   mutate(relative_to_nochange = model_error / nochange_error,
          across(where(is.numeric), ~ round(.x, 1)))
 ```
+
+
 
