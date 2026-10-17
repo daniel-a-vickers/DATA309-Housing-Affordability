@@ -8,6 +8,9 @@ output:
 ---
 
 ```{r setup, include = FALSE}
+# UNCOMMENT BELOW LINE TO INSTALL NECESSARY PACKAGES
+#install.packages(c("tidyverse", "readxl", "zoo", "sandwich", "lmtest", "car", "broom", "knitr"))
+
 knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 8, fig.height = 6)
 library(tidyverse)
 library(readxl)
