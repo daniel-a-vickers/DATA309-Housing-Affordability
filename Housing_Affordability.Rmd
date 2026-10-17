@@ -14,7 +14,6 @@ library(readxl)
 library(zoo)
 library(sandwich)
 library(lmtest)
-# car is called as car::vif(): loading it would mask dplyr::recode, used in the plots
 
 covid         <- as.Date("2020-03-01")  # first post-COVID month; the single break date used throughout
 common_window <- TRUE                   # TRUE: NZ and Canterbury full-sample models use identical months
@@ -51,7 +50,7 @@ df <- raw %>%
     vol_nz        = `Volume Sold`,
     vol_cant      = `Volume Sold Canterbury`,
     net_mig_nz    = `Net migration`,
-    bright_line   = `Bright Line Test Period`,   # holding period in force (years)
+    bright_line   = `Bright Line Test Period`,   # holding period in years
     invent_nz     = `Weeks of Inventory`,
     invent_cant   = `Weeks of Inventory Canterbury`
   )
@@ -173,39 +172,6 @@ ggplot(outcomes, aes(date, value, colour = region)) +
   )
 ```
 
-```{r drivers, fig.height = 8}
-by_region <- df %>%
-  select(date, consents_per1000_nz, consents_per1000_cant,
-         pop_growth_nz, pop_growth_cant, vol_yoy_nz, vol_yoy_cant) %>%
-  pivot_longer(-date, names_to = c("var", "region"), names_pattern = "(.*)_(nz|cant)") %>%
-  mutate(region = if_else(region == "nz", "NZ", "Canterbury"),
-         var = factor(var, levels = c("consents_per1000", "pop_growth", "vol_yoy"),
-                      labels = c("Dwelling consents, 12m per 1,000 people",
-                                 "Population growth, % y/y",
-                                 "Sales volume, % y/y (12m sum)")))
-
-ggplot(by_region, aes(date, value, colour = region)) +
-  geom_line(na.rm = TRUE) +
-  geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40") +
-  facet_wrap(~ var, scales = "free_y", ncol = 1) +
-  labs(x = NULL, y = NULL, colour = NULL, title = "Regional drivers") +
-  theme_minimal() + theme(legend.position = "top")
-
-national <- df %>%
-  select(date, `2-yr mortgage rate (%)` = rate_2y, `OCR (%)` = ocr,
-         `LVR >80% share of new lending (%)` = lvr_share) %>%
-  pivot_longer(-date) %>%
-  mutate(panel = if_else(name == "LVR >80% share of new lending (%)",
-                         name, "Interest rates (%)"))
-
-ggplot(national, aes(date, value, colour = name)) +
-  geom_line(na.rm = TRUE) +
-  geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40") +
-  facet_wrap(~ panel, scales = "free_y", ncol = 1) +
-  labs(x = NULL, y = NULL, colour = NULL, title = "National drivers") +
-  theme_minimal() + theme(legend.position = "top")
-```
-
 ```{r prepost}
 # Pre/post COVID means
 df %>%
@@ -294,10 +260,18 @@ decomp_report <- function(cd, direct, ylab, caption) {
     geom_hline(yintercept = 0, colour = "grey40") +
     facet_wrap(~ region) +
     scale_fill_manual(values = unname(pal[used]), breaks = used, labels = unname(lab[used])) +
-    labs(x = NULL, y = ylab, fill = NULL, caption = caption) +
-    theme_minimal() + theme(legend.position = "top",
-                            axis.text.x = element_text(angle = 20, hjust = 1))
-  list(table = tab, plot = plt)
+    labs(x = NULL, y = ylab, fill = NULL, caption = caption, title = "Housing Affordability") +  
+    theme(                                    # Title changed manually for report and presentation plots     
+        legend.position = "top",
+        legend.text = element_text(size = 12),                    
+        axis.text = element_text(size = 11, angle = 20, hjust = 1, face = "bold"), 
+        axis.title = element_text(size = 13, face = "bold"),      
+        strip.text = element_text(size = 12, face = "bold"),      
+        plot.title = element_text(size = 18, face = "bold"),      
+        plot.caption = element_text(size = 10)                    
+    )
+
+list(table = tab, plot = plt)
 }
 
 burden <- decomp_report(
@@ -348,13 +322,21 @@ ggplot(contrib_rti, aes(window, contribution, fill = component)) +
              show.legend = FALSE) +
   geom_hline(yintercept = 0, colour = "grey40") +
   facet_wrap(~ region) +
-  scale_fill_manual(values = c(rent = "#d95f02", income = "#7570b3"),
+  scale_fill_manual(values = c(rent = "#ffd700", income = "#7570b3"),
                     labels = c("Rent", "Income")) +
   labs(x = NULL, y = "Contribution to change in rent-to-income ratio (log points x100)",
        fill = NULL,
-       caption = "Diamond = total change in log rent-to-income ratio (median rent). Per-person income.") +
-  theme_minimal() + theme(legend.position = "top",
-                          axis.text.x = element_text(angle = 20, hjust = 1))
+       caption = "Diamond = total change in log rent-to-income ratio (median rent). Per-person income.",
+       title = "Renting Affordability") +
+  theme(
+        legend.position = "top",
+        legend.text = element_text(size = 12),                    # Increased legend text size
+        axis.text = element_text(size = 11, angle = 20, hjust = 1, face = "bold"), # Increased axis text size
+        axis.title = element_text(size = 13, face = "bold"),      # Added and increased axis title size
+        strip.text = element_text(size = 12, face = "bold"),      # Increased facet label size
+        plot.title = element_text(size = 18, face = "bold"),      # Maintained title size
+        plot.caption = element_text(size = 10)                    # Added caption text size
+    )
 ```
 
 
@@ -636,8 +618,8 @@ make_stock_flow_panel <- function(data, region_name, consents_col, invent_col) {
   d <- d %>% mutate(inventory_scaled = inventory * scale_factor + offset)
 
   ggplot(d, aes(date)) +
-    geom_line(aes(y = consents, colour = "Consents per 1,000 (flow)"), linewidth = 0.7) +
-    geom_line(aes(y = inventory_scaled, colour = "Weeks of inventory (stock)"), linewidth = 0.7) +
+    geom_line(aes(y = consents, colour = "Consents per 1,000 (flow)"), linewidth = 1) +
+    geom_line(aes(y = inventory_scaled, colour = "Weeks of inventory (stock)"), linewidth = 1) +
     geom_vline(xintercept = covid, linetype = "dashed", colour = "grey40") +
     scale_y_continuous(
       name = "Consents per 1,000 people",
@@ -647,11 +629,18 @@ make_stock_flow_panel <- function(data, region_name, consents_col, invent_col) {
                                     "Weeks of inventory (stock)" = "#d95f02")) +
     labs(x = NULL, colour = NULL, title = region_name) +
     theme_minimal() +
-    theme(legend.position = "top")
+    theme(
+        legend.position = "top",
+        legend.text = element_text(size = 12),                    # Increased legend text size
+        axis.text = element_text(size = 11, angle = 20, hjust = 1, face = "bold"), # Increased axis text size
+        axis.title = element_text(size = 13, face = "bold"),      # Added and increased axis title size
+        strip.text = element_text(size = 12, face = "bold"),      # Increased facet label size
+        plot.title = element_text(size = 18, face = "bold"),      # Maintained title size
+        plot.caption = element_text(size = 10))  
 }
 
-p_nz   <- make_stock_flow_panel(df, "NZ",         "consents_per1000_nz",   "invent_nz")
-p_cant <- make_stock_flow_panel(df, "Canterbury", "consents_per1000_cant", "invent_cant")
+p_nz   <- make_stock_flow_panel(df, "Inventory vs Consents NZ",         "consents_per1000_nz",   "invent_nz")
+p_cant <- make_stock_flow_panel(df, "Inventory vs Consents Canterbury", "consents_per1000_cant", "invent_cant")
 
 p_nz
 p_cant
@@ -659,30 +648,10 @@ p_cant
 ```
 
 ```{r}
-## ---- chunk 15: coefficient plot for the driver regressions ----------------
-# Charts the regression results directly, rather than just tabulating them.
-# A dot-and-whisker (coefficient) plot is used, not a scatter of the raw
-# data, because these are MULTIPLE regression models (6-11 regressors each)
-# -- there's no single x/y pair to scatter. A coefficient plot is the
-# standard way to visualise multi-regressor OLS output: each term gets a
-# point estimate + 95% CI whisker, faceted/grouped so you can compare the
-# same term's estimate and precision across all 4 models at once.
-#
-# This directly visualises everything already established in discussion:
-# sign flips (rate_2y, inventory), which terms are consistently robust
-# (unemp) vs unstable across specifications, and the NZ vs Canterbury
-# divergence -- in one chart instead of four separate tables.
-#
-# Reuses `results` (built by hac_tidy() + imap_dfr(fits, hac_tidy) in the
-# models chunk) directly -- no need to refit anything. CI built from the
-# already-computed HAC std.error (95% CI = estimate +/- 1.96*std.error),
-# consistent with the Newey-West SEs used throughout the rest of the report.
-
 library(dplyr)
 library(ggplot2)
 library(stringr)
 
-## ---- build CI + tidy labels from the existing `results` tibble -----------
 coef_plot_data <- results %>%
   filter(term != "(Intercept)") %>%     # intercept isn't economically interesting here
   mutate(
@@ -693,7 +662,6 @@ coef_plot_data <- results %>%
     sample    = factor(sample, levels = c("Pre-COVID", "Full sample"))
   )
 
-## ---- order terms sensibly (main effects first, then their interactions) --
 term_order <- c("rate_2y", "rate_2y:post_covid",
                  "lvr_share",
                  "net_mig_nz_k", "net_mig_nz_k:post_covid",
@@ -703,7 +671,6 @@ term_order <- c("rate_2y", "rate_2y:post_covid",
 coef_plot_data <- coef_plot_data %>%
   mutate(term = factor(term, levels = rev(term_order)))
 
-## ---- plot: one point + whisker per term, coloured by region, faceted by sample
 ggplot(coef_plot_data, aes(x = estimate, y = term, colour = region)) +
   geom_vline(xintercept = 0, colour = "grey50", linetype = "dashed") +
   geom_pointrange(aes(xmin = conf.low, xmax = conf.high),
@@ -717,13 +684,6 @@ ggplot(coef_plot_data, aes(x = estimate, y = term, colour = region)) +
   theme_minimal() +
   theme(legend.position = "top", strip.text = element_text(face = "bold"))
 
-## ---- optional companion: actual vs fitted price, per region --------------
-# Useful alongside the coefficient plot to SHOW model fit quality, not just
-# state the R-squared -- particularly for Canterbury, where R-squared is
-# much lower (0.58-0.61 pre-COVID) than NZ's (0.92+). Seeing the fitted
-# line visibly track the actual series more loosely for Canterbury makes
-# that gap concrete rather than just a number in a table.
-
 library(broom)
 library(purrr)
 library(tidyr)
@@ -735,9 +695,7 @@ fitted_data <- imap_dfr(fits, function(fit, model_name) {
            sample = if_else(str_detect(model_name, "pre-COVID"), "Pre-COVID", "Full sample"))
 })
 
-# augment() doesn't carry `date` through automatically -- re-attach it by
-# row order within each model's own data (safe since no rows are reordered
-# by lm()/augment()).
+
 fitted_data <- fitted_data %>%
   group_by(model) %>%
   mutate(date = model_data %>%
@@ -848,9 +806,17 @@ ggplot(fit_df, aes(date, price_k, colour = series, linetype = series)) +
   scale_colour_manual(values = c(Actual = "black", Fitted = "#d95f02")) +
   scale_linetype_manual(values = c(Actual = "solid", Fitted = "dashed")) +
   labs(x = NULL, y = "Median sale price ($000)", colour = NULL, linetype = NULL,
-       title = "Actual vs fitted median sale price, split pre- and post-COVID models",
+       title = "Actual vs fitted median sale price, split pre- and post-COVID",
        caption = "In-sample fit: each model is fitted and evaluated on its own period, so this shows fit, not prediction.") +
-  theme_minimal() + theme(legend.position = "top")
+  theme(
+        legend.position = "top",
+        legend.text = element_text(size = 12),                    # Increased legend text size
+        axis.text = element_text(size = 11, angle = 20, hjust = 1, face = "bold"), # Increased axis text size
+        axis.title = element_text(size = 13, face = "bold"),      # Added and increased axis title size
+        strip.text = element_text(size = 12, face = "bold"),      # Increased facet label size
+        plot.title = element_text(size = 18, face = "bold"),      # Maintained title size
+        plot.caption = element_text(size = 10)                    # Added caption text size
+    )
 ```
 
 ```{r}
