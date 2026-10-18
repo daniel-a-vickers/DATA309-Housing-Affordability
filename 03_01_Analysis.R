@@ -5,7 +5,6 @@
 # Classification scheme:
 #   Method A: match LocalityName to the Stats NZ Urban Rural 2025 list
 #   Method B: guess from site size and category code (works on every row)
-#   Method C: Chch city = urban, rest = rural  (Only used to check previous results)
 #   Final: use A where it exists, B where A misses, disagreements become peri-urban
 
 
@@ -125,22 +124,30 @@ ecan_proxy <- ecan_lookup %>%
 # Saftey catch:
 # proxy says uncertain but there is a dwelling on site
 # and capital value is under 750k, treat as Urban
+# Remove outlyers
 
 dwelling_words <- "DWG|BLDG|UNIT|FLAT|HOUSE|BACH|CRIB"
 
 ecan_proxy <- ecan_proxy %>%
+  filter(
+    is.na(ImprovementsValue) | ImprovementsValue > 0,
+    is.na(LandUse) | as.character(LandUse) != "90000"
+  ) %>%
   mutate(
     has_dwelling = (coalesce(ImprovementsValue, 0) > 0) |
       str_detect(str_to_upper(Improvements), dwelling_words),
-    rescue_urban = proxy_class == "Uncertain" & coalesce(has_dwelling, FALSE) &
-      !is.na(CapitalValue) & CapitalValue < 750000,
+    rescue_urban = proxy_class == "Uncertain" & 
+      coalesce(has_dwelling, FALSE) &
+      !is.na(CapitalValue) & 
+      CapitalValue < 750000,
     proxy_class = if_else(rescue_urban, "Urban", proxy_class),
     proxy_method = if_else(rescue_urban, "proxy rescue: dwelling under 750k",
                            proxy_method)
   )
+  
 
 
-# Method C: Chch city = Urban, everything else = Rural
+# Chch city = Urban, everything else = Rural
 # Only used to check the headline results not used to do any mapping
 
 ecan_checked <- ecan_proxy %>%
@@ -365,7 +372,7 @@ ggplot(as.data.frame(class_counts),
     labels = scales::comma,
     expand = expansion(mult = c(0, 0.3))) +
   labs(
-    title = "Final classification (ECAN, n=329k)",
+    title = "Final classification (ECAN, n=309k)",
     x = "Class",
     y = "# of Properties",
     fill = "Class"
